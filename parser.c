@@ -57,6 +57,8 @@ AstExpr* parse_leaf(Lexer* lexer) {
             leaf->type = AST_NUMBER;
             leaf->number.token = t;
             return leaf;
+        case OPEN_PARENT:
+            return NULL;
         default:
             PANIC("expected IDENT or NUMBER after %s , got: %s",
                   format_enum(Lexer_peek_back(lexer).kind),
@@ -70,6 +72,10 @@ AstExpr* parse_leaf(Lexer* lexer) {
 
 AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
     Token next = Lexer_peek(lexer);
+
+    if( next.kind == CLOSE_PARENT ) {
+        return left;
+    }
     if( !is_opp(next.kind)) {
         // EOF
         return left;
@@ -88,6 +94,10 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
 }
 AstExpr* parse_expr(Lexer* lexer, int min_bp) {
     AstExpr* left = parse_leaf(lexer);
+    if( left == NULL ) {
+        left = parse_expr(lexer,0);
+        ASSERT_EQUAL(Lexer_next(lexer).kind, CLOSE_PARENT);
+    }
     while(true) {
         AstExpr* node = parse_incrising_bp(lexer,left,min_bp);
         if( node == left ) {
