@@ -21,6 +21,7 @@ typedef enum {
 
     ASSIGN,
     SEMICOLON,
+    COMMA,
     ADDITION,
     MULTIPLICATION,
     DIVITION,

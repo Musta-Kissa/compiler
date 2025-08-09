@@ -15,6 +15,7 @@ typedef enum {
     AST_BINARY_OPERATION,   // Represents binary operations (e.g., a + b)
     //AST_UNARY_OPERATION,    // Represents unary operations (e.g., -a)
     AST_FUNC_CALL,          // Represents function calls (e.g., add(1, 2))
+    AST_ARGUMENT,          
     AST_NUMBER,             // Represents numeric literals (e.g., 42)
     AST_IDENTIFIER,         // Represents variable identifiers (e.g., x)
     AST_ASSIGNMENT,         // Represents assignment statements (e.g., x = 5)
@@ -39,9 +40,13 @@ typedef struct AstExpr {
             struct AstExpr* right; 
         } binary_operation;
         struct FuncCall {
-            struct AstExpr* ident;
+            Token identifier;
             struct AstExpr* args;
         } func_call;   
+        struct Arg {
+            struct AstExpr* value;
+            struct AstExpr* next; // CAN BE NULL
+        } argument;
         struct Number {
             Token token;   
         } number;     

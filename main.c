@@ -10,7 +10,22 @@
     exit(-1); \
 }
 
-void print_ast(AstExpr* expr) {
+void print_expr(AstExpr* expr);
+void print_args(AstExpr* arg) {
+    if( arg == NULL) {
+        printf("\b\b");
+        return;
+    } 
+    print_expr(arg->argument.value);
+    printf(", ");
+    print_args(arg->argument.next);
+}
+
+void print_expr(AstExpr* expr) {
+    if( expr == NULL) {
+        printf("EMPTY EXPR");
+        return;
+    }
     switch(expr->type) {
         case AST_NUMBER:
             printf("%s",expr->number.token.value.string);
@@ -38,12 +53,17 @@ void print_ast(AstExpr* expr) {
                 printf("."); break;
         }
         printf(" "); 
-        print_ast(expr->binary_operation.left);
+        print_expr(expr->binary_operation.left);
         printf(" ");
-        print_ast(expr->binary_operation.right);
+        print_expr(expr->binary_operation.right);
         printf(")");
-    } else {
-        exit(69);
+    } 
+    if( expr->type == AST_FUNC_CALL ) {
+        printf("<Fn %s>{",expr->func_call.identifier.value.string);
+        if( expr->func_call.args != NULL ){
+            print_args(expr->func_call.args);
+        }
+        printf("}");
     }
 }
 
@@ -86,7 +106,7 @@ int main(int argc, char* argv[]) {
     while( Lexer_peek(&lexer).kind != EOF_TOKEN) {
         AstExpr* expr = parse_expr(&lexer,0);
         printf("=========================\n");
-            print_ast(expr);
+            print_expr(expr);
         printf("\n");
         Lexer_next(&lexer);
     }

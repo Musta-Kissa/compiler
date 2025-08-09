@@ -4,6 +4,12 @@
     printf(fmt "\n", ##__VA_ARGS__); \
     exit(-1); \
 }
+#define ASSERT(expr, fmt, ...) { \
+    if (!expr) { \
+        printf(fmt "\n", ##__VA_ARGS__); \
+        exit(-1); \
+    } \
+}
 
 const char* format_enum(TokenKind k) {
     switch(k) {
@@ -16,10 +22,11 @@ const char* format_enum(TokenKind k) {
         case CLOSE_PARENT:          return "CLOSE_PARENT";
         case OPEN_CURRLY_PARENT:    return "OPEN_CURRLY_PARENT";
         case CLOSE_CURRLY_PARENT:   return "CLOSE_CURRLY_PARENT";
-        case DOT:                   return "DOT";
         case EOF_TOKEN:             return "EOF_TOKEN";
         case ASSIGN:                return "ASSIGN";
         case SEMICOLON:             return "SEMICOLON";
+        case COMMA:                 return "COMMA";
+        case DOT:                   return "DOT";
         case ADDITION:              return "ADDITION";
         case MULTIPLICATION:        return "MULTIPLICATION";
         case DIVITION:              return "DIVITION";
@@ -32,7 +39,7 @@ const char* format_enum(TokenKind k) {
 
 
 int is_terminal(char c) {
-    const char terminals[] = {'.','[', ']', '(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
+    const char terminals[] = {',','.','[', ']', '(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
 
     for ( int i = 0; i <= len; i++) {
@@ -67,10 +74,11 @@ Lexer lex_file(FILE* f) {
     char c;
     char tmp[100];
     int tmp_idx = 0;
-    Token* tokens = (Token*)malloc(sizeof(Token)*100);
+    Token* tokens = (Token*)malloc(sizeof(Token)*1000);
     int tokens_idx = 0;
 
     while((c = fgetc(f)) != EOF ) {
+        ASSERT((tokens_idx < 1000),"%s %d: EXEEDED MAX TOKENS",__FILE__,__LINE__);
         switch(c) {
             case '(': tokens[tokens_idx++] = (Token){ .kind=OPEN_PARENT };          continue;
             case '{': tokens[tokens_idx++] = (Token){ .kind=OPEN_CURRLY_PARENT };   continue;
@@ -81,6 +89,7 @@ Lexer lex_file(FILE* f) {
             case '*': tokens[tokens_idx++] = (Token){ .kind=MULTIPLICATION };       continue;
             case '/': tokens[tokens_idx++] = (Token){ .kind=DIVITION };             continue;
             case ';': tokens[tokens_idx++] = (Token){ .kind=SEMICOLON };            continue;
+            case ',': tokens[tokens_idx++] = (Token){ .kind=COMMA };                continue;
             case '.': tokens[tokens_idx++] = (Token){ .kind=DOT };                  continue;
             case '<': tokens[tokens_idx++] = (Token){ .kind=LESS_THEN };            continue;
             case '>': tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };            continue;
