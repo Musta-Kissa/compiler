@@ -25,12 +25,14 @@ const char* format_enum(TokenKind k) {
         case DIVITION:              return "DIVITION";
         case LESS_THEN:             return "LESS_THEN";
         case MORE_THEN:             return "MORE_THEN";
+        case SUBSCRIPT_OPEN:        return "SUBSCRIPT_OPEN";
+        case SUBSCRIPT_CLOSE:       return "SUBSCRIPT_CLOSE";
     }
 }
 
 
 int is_terminal(char c) {
-    const char terminals[] = {'(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
+    const char terminals[] = {'[', ']', '(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
 
     for ( int i = 0; i <= len; i++) {
@@ -82,8 +84,11 @@ Lexer lex_file(FILE* f) {
             case '.': tokens[tokens_idx++] = (Token){ .kind=DOT };                  continue;
             case '<': tokens[tokens_idx++] = (Token){ .kind=LESS_THEN };            continue;
             case '>': tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };            continue;
+            case '[': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_OPEN };       continue;
+            case ']': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_CLOSE };      continue;
         }
         switch(c) {
+            case '\t':
             case '\n':
             case ' ':
                 continue;

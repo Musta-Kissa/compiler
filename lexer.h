@@ -26,6 +26,8 @@ typedef enum {
     DIVITION,
     LESS_THEN,
     MORE_THEN,
+    SUBSCRIPT_OPEN,
+    SUBSCRIPT_CLOSE,
 } TokenKind ;
 
 typedef struct Token {

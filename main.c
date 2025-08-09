@@ -13,27 +13,31 @@
 void print_ast(AstExpr* expr) {
     switch(expr->type) {
         case AST_NUMBER:
-            printf(" %s ",expr->number.token.value.string);
+            printf("%s",expr->number.token.value.string);
             return;
         case AST_IDENTIFIER:
-            printf(" %s ",expr->identifier.token.value.string);
+            printf("%s",expr->identifier.token.value.string);
             return;
     }
     if (expr->type == AST_BINARY_OPERATION) {
         printf("(");
         switch (expr->binary_operation.opp_token.kind) {
             case ADDITION:
-                printf("+ "); break;
+                printf("+"); break;
             case DIVITION:
-                printf("/ "); break;
+                printf("/"); break;
             case MULTIPLICATION:
-                printf("* "); break;
+                printf("*"); break;
             case LESS_THEN:
-                printf("< "); break;
+                printf("<"); break;
             case MORE_THEN:
-                printf("> "); break;
+                printf(">"); break;
+            case SUBSCRIPT_OPEN:
+                printf("[]"); break;
         }
+        printf(" "); 
         print_ast(expr->binary_operation.left);
+        printf(" ");
         print_ast(expr->binary_operation.right);
         printf(")");
     } else {
@@ -75,10 +79,15 @@ int main(int argc, char* argv[]) {
         printf("\n");
     }
 
-    AstExpr* expr = parse_expr(&lexer,0);
-    printf("=========================\n");
-    print_ast(expr);
-    printf("\n=========================\n");
+    printf("AstExpr size: %d\n",sizeof(Token));
+
+    while( Lexer_peek(&lexer).kind != EOF_TOKEN) {
+        AstExpr* expr = parse_expr(&lexer,0);
+        printf("=========================\n");
+            print_ast(expr);
+        printf("\n");
+        Lexer_next(&lexer);
+    }
     //float result = compute_ast(expr);
     //printf("result %f\n",result);
 }
