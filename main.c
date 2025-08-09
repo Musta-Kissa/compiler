@@ -34,6 +34,8 @@ void print_ast(AstExpr* expr) {
                 printf(">"); break;
             case SUBSCRIPT_OPEN:
                 printf("[]"); break;
+            case DOT:
+                printf("."); break;
         }
         printf(" "); 
         print_ast(expr->binary_operation.left);
@@ -88,6 +90,4 @@ int main(int argc, char* argv[]) {
         printf("\n");
         Lexer_next(&lexer);
     }
-    //float result = compute_ast(expr);
-    //printf("result %f\n",result);
 }

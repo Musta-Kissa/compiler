@@ -30,11 +30,13 @@ int get_binding_power(TokenKind opp) {
         case MULTIPLICATION:    return 4;
         case DIVITION:          return 4;
         case SUBSCRIPT_OPEN:    return 5;
+        case DOT:               return 6;
     }
 }
 
 int is_opp(TokenKind k) {
     switch(k) {
+        case DOT: 
         case SUBSCRIPT_OPEN: 
         case LESS_THEN: 
         case MORE_THEN: 
@@ -82,11 +84,9 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
     Token next = Lexer_peek(lexer);
 
     if( next.kind == CLOSE_PARENT  || next.kind == SUBSCRIPT_CLOSE ) {
-        //PRETEND EOF
-        return left;
+        return left; //PRETEND EOF
     }
-    if( !is_opp(next.kind)) {
-        // EOF
+    if( !is_opp(next.kind)) { // EOF
         ASSERT_EQUAL(next.kind, SEMICOLON, "%s %d: expected SEMICOLON, got %s, lexer idx: %d",
                 __FILE__,
                 __LINE__,
@@ -98,15 +98,14 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
 
     int next_bp = get_binding_power(next.kind);
     if( next_bp <= min_bp ) {
-        // Pretend EOF
-        return left;
+        return left; // Pretend EOF
     } else {
         Lexer_next(lexer);
         AstExpr* right;
         if( next.kind == SUBSCRIPT_OPEN) {
             right = parse_expr(lexer,0);
-            Token next = Lexer_next(lexer);
-            ASSERT_EQUAL(next.kind, SUBSCRIPT_CLOSE, "%s %d: expected close CLOSE_PARENT got: %s", __FILE__, __LINE__, format_enum(next.kind));
+            ASSERT_EQUAL(Lexer_next(lexer).kind, SUBSCRIPT_CLOSE, 
+                    "%s %d: expected close CLOSE_PARENT got: %s", __FILE__, __LINE__, format_enum(Lexer_peek_back(lexer).kind));
         } else {
             right = parse_expr(lexer,next_bp);
         }
@@ -116,16 +115,11 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
 }
 AstExpr* parse_expr(Lexer* lexer, int min_bp) {
     AstExpr* left = parse_leaf(lexer);
-    //if( left->type == AST_SUBSCRIPT ) {
-        //left = parse_expr(lexer,0);
-        //Token next = Lexer_next(lexer);
-        //ASSERT_EQUAL(next.kind, SUBSCRIPT_CLOSE, "%s %d: expected close SUBSCRIPT_CLOSE got: %s", __FILE__,__LINE__,format_enum(next.kind));
-    //}
     if( left == NULL ) {
         // OPENING PARENT
         left = parse_expr(lexer,0);
-        Token next = Lexer_next(lexer);
-        ASSERT_EQUAL(next.kind, CLOSE_PARENT, "%s %d: expected close CLOSE_PARENT got: %s", __FILE__,__LINE__,format_enum(next.kind));
+        ASSERT_EQUAL(Lexer_next(lexer).kind, CLOSE_PARENT, 
+                "%s %d: expected close CLOSE_PARENT got: %s", __FILE__,__LINE__,format_enum(Lexer_peek_back(lexer).kind));
     }
     while(true) {
         AstExpr* node = parse_incrising_bp(lexer,left,min_bp);

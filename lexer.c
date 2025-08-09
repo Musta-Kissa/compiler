@@ -32,7 +32,7 @@ const char* format_enum(TokenKind k) {
 
 
 int is_terminal(char c) {
-    const char terminals[] = {'[', ']', '(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
+    const char terminals[] = {'.','[', ']', '(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
 
     for ( int i = 0; i <= len; i++) {
