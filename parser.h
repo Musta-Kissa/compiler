@@ -1,5 +1,5 @@
-#ifndef PRATT_H
-#define PRATT_H
+#ifndef PARSER_H
+#define PARSER_H
 
 #include "lexer.h"
 
@@ -17,6 +17,7 @@ typedef enum {
     AST_FUNC_CALL,          // Represents function calls (e.g., add(1, 2))
     AST_ARGUMENT,          
     AST_NUMBER,             // Represents numeric literals (e.g., 42)
+    AST_STRING,             
     AST_IDENTIFIER,         // Represents variable identifiers (e.g., x)
     AST_ASSIGNMENT,         // Represents assignment statements (e.g., x = 5)
     AST_DECLARATION,        // Represents variable declarations (e.g., int x = 10)
@@ -39,6 +40,10 @@ typedef struct AstExpr {
             struct AstExpr* left; 
             struct AstExpr* right; 
         } binary_operation;
+        struct UnaryOperation {
+            Token opp_token;        
+            struct AstExpr* right; 
+        } unary_operation; // TODO implement unary in parser
         struct FuncCall {
             Token identifier;
             struct AstExpr* args;
@@ -50,6 +55,9 @@ typedef struct AstExpr {
         struct Number {
             Token token;   
         } number;     
+        struct AstString {
+            Token token;   
+        } string;     
         struct Identifier {
             Token token;
         } identifier;

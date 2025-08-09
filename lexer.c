@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include <string.h>
 
 #define PANIC(fmt, ...) { \
     printf(fmt "\n", ##__VA_ARGS__); \
@@ -34,12 +35,18 @@ const char* format_enum(TokenKind k) {
         case MORE_THEN:             return "MORE_THEN";
         case SUBSCRIPT_OPEN:        return "SUBSCRIPT_OPEN";
         case SUBSCRIPT_CLOSE:       return "SUBSCRIPT_CLOSE";
+        case SUBTRACT:              return "SUBTRACT";
+        case EQUAL:                 return "EQUAL";
+        case NOT:                   return "NOT";
+        case NOT_EQUAL:             return "NOT_EQUAL";
+        case LESS_EQUAL:            return "LESS_EQUAL";
+        case MORE_EQUAL:            return "MORE_EQUAL";
     }
 }
 
 
 int is_terminal(char c) {
-    const char terminals[] = {',','.','[', ']', '(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
+    const char terminals[] = {'!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
 
     for ( int i = 0; i <= len; i++) {
@@ -70,31 +77,57 @@ Token Lexer_peek_back(Lexer* lexer) {
     return lexer->tokens[lexer->idx-1];
 }
 
-Lexer lex_file(FILE* f) {
+Lexer lex_file(String string) {
     char c;
     char tmp[100];
     int tmp_idx = 0;
     Token* tokens = (Token*)malloc(sizeof(Token)*1000);
     int tokens_idx = 0;
 
-    while((c = fgetc(f)) != EOF ) {
+    while((c = String_getc(&string)) != EOF ) {
         ASSERT((tokens_idx < 1000),"%s %d: EXEEDED MAX TOKENS",__FILE__,__LINE__);
         switch(c) {
             case '(': tokens[tokens_idx++] = (Token){ .kind=OPEN_PARENT };          continue;
             case '{': tokens[tokens_idx++] = (Token){ .kind=OPEN_CURRLY_PARENT };   continue;
             case ')': tokens[tokens_idx++] = (Token){ .kind=CLOSE_PARENT };         continue;
             case '}': tokens[tokens_idx++] = (Token){ .kind=CLOSE_CURRLY_PARENT };  continue;
-            case '=': tokens[tokens_idx++] = (Token){ .kind=ASSIGN };               continue;
             case '+': tokens[tokens_idx++] = (Token){ .kind=ADDITION };             continue;
+            case '-': tokens[tokens_idx++] = (Token){ .kind=SUBTRACT };             continue;
             case '*': tokens[tokens_idx++] = (Token){ .kind=MULTIPLICATION };       continue;
             case '/': tokens[tokens_idx++] = (Token){ .kind=DIVITION };             continue;
             case ';': tokens[tokens_idx++] = (Token){ .kind=SEMICOLON };            continue;
             case ',': tokens[tokens_idx++] = (Token){ .kind=COMMA };                continue;
             case '.': tokens[tokens_idx++] = (Token){ .kind=DOT };                  continue;
-            case '<': tokens[tokens_idx++] = (Token){ .kind=LESS_THEN };            continue;
-            case '>': tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };            continue;
             case '[': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_OPEN };       continue;
             case ']': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_CLOSE };      continue;
+            case '<':
+                if( String_getc(&string) == '=') {
+                    tokens[tokens_idx++] = (Token){ .kind=LESS_EQUAL };                  continue;
+                } else {
+                    String_ungetc(&string);
+                    tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };                 continue;
+                }
+            case '>':
+                if( String_getc(&string) == '=') {
+                    tokens[tokens_idx++] = (Token){ .kind=MORE_EQUAL };                  continue;
+                } else {
+                    String_ungetc(&string);
+                    tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };                 continue;
+                }
+            case '=':
+                if( String_getc(&string) == '=') {
+                    tokens[tokens_idx++] = (Token){ .kind=EQUAL };                  continue;
+                } else {
+                    String_ungetc(&string);
+                    tokens[tokens_idx++] = (Token){ .kind=ASSIGN };                 continue;
+                }
+            case '!':
+                if( String_getc(&string) == '=') {
+                    tokens[tokens_idx++] = (Token){ .kind=NOT_EQUAL };              continue;
+                } else {
+                    String_ungetc(&string);
+                    tokens[tokens_idx++] = (Token){ .kind=NOT };                    continue;
+                }
         }
         switch(c) {
             case '\t':
@@ -106,9 +139,9 @@ Lexer lex_file(FILE* f) {
         if( c >= '0' && c <= '9' ) {
             do {
                 tmp[tmp_idx++] = c; 
-                c = fgetc(f);
+                c = String_getc(&string);
             } while( c >= '0' && c <= '9' );
-            ungetc(c,f);
+            String_ungetc(&string);
 
             tmp[tmp_idx++] = '\0'; tmp_idx = 0;
 
@@ -117,10 +150,10 @@ Lexer lex_file(FILE* f) {
             tokens[tokens_idx++] = t;
 
         } else if( c == '\"') {
-            c = fgetc(f);
+            c = String_getc(&string);
             while( c != '\"' || c == EOF) {
                 tmp[tmp_idx++] = c; 
-                c = fgetc(f);
+                c = String_getc(&string);
             }
 
             tmp[tmp_idx++] = '\0'; tmp_idx = 0;
@@ -132,13 +165,13 @@ Lexer lex_file(FILE* f) {
             while(1) {
                 tmp[tmp_idx++] = c; 
 
-                c = fgetc(f);
+                c = String_getc(&string);
                 if( is_terminal(c) ) {
                     break;
                 }
             }
 
-            ungetc(c,f);
+            String_ungetc(&string);
             tmp[tmp_idx++] = '\0'; tmp_idx = 0;
 
             if( strcmp(tmp,"int") == 0 ) {

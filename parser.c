@@ -26,11 +26,19 @@ int get_binding_power(TokenKind opp) {
     switch(opp){
         case LESS_THEN:         return 2;
         case MORE_THEN:         return 2;
+        case NOT_EQUAL:         return 2;
+        case LESS_EQUAL:        return 2;
+        case MORE_EQUAL:        return 2;
+        case EQUAL:             return 2;
+
         case ADDITION:          return 3;
+        case SUBTRACT:          return 3;
         case MULTIPLICATION:    return 4;
         case DIVITION:          return 4;
-        case SUBSCRIPT_OPEN:    return 5;
-        case DOT:               return 6;
+        case NOT:               return 5;
+        case SUBSCRIPT_OPEN:    return 6;
+        case DOT:               return 7;
+
     }
 }
 
@@ -43,6 +51,12 @@ int is_opp(TokenKind k) {
         case MULTIPLICATION:
         case ADDITION:
         case DIVITION:
+        case SUBTRACT:
+        case EQUAL:
+        case NOT:
+        case NOT_EQUAL:
+        case LESS_EQUAL:
+        case MORE_EQUAL:
             return 1;
         default:
             return 0;
@@ -99,11 +113,16 @@ AstExpr* parse_leaf(Lexer* lexer) {
             leaf->type = AST_NUMBER;
             leaf->number.token = t;
             return leaf;
+        case STRING:
+            leaf->type = AST_STRING;
+            leaf->number.token = t;
+            return leaf;
         case OPEN_PARENT:
             return NULL;
-            
+
+        // HERE implement unary
         default:
-            PANIC("%s %d: expected IDENT or NUMBER after %s, got: %s",
+            PANIC("%s %d: expected IDENT or NUMBER or STRING after %s, got: %s",
                   __FILE__,
                   __LINE__,
                   format_enum(Lexer_peek_back(lexer).kind),

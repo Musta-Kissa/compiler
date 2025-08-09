@@ -1,10 +1,12 @@
 #ifndef LEXER_H
 #define LEXER_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "my_string.h"
 
-typedef enum {
+typedef enum TokenKind {
     IDENT,
     NUMBER,
     STRING,
@@ -29,6 +31,14 @@ typedef enum {
     MORE_THEN,
     SUBSCRIPT_OPEN,
     SUBSCRIPT_CLOSE,
+
+    SUBTRACT,
+    EQUAL,
+    NOT,
+    NOT_EQUAL,
+    LESS_EQUAL,
+    MORE_EQUAL,
+
 } TokenKind ;
 
 typedef struct Token {
@@ -50,7 +60,7 @@ Token Lexer_peek(Lexer* lexer);
 Token Lexer_peek_back(Lexer* lexer);
 
 int is_terminal(char c);
-Lexer lex_file(FILE* f);
+Lexer lex_file(String string);
 const char* format_enum(TokenKind k);
 
 #endif

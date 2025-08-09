@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "lexer.h"
+#include "my_string.h"
 #include "parser.h"
 
 #define PANIC(fmt, ...) { \
@@ -33,6 +34,9 @@ void print_expr(AstExpr* expr) {
         case AST_IDENTIFIER:
             printf("%s",expr->identifier.token.value.string);
             return;
+        case AST_STRING:
+            printf("\"%s\"",expr->identifier.token.value.string);
+            return;
     }
     if (expr->type == AST_BINARY_OPERATION) {
         printf("(");
@@ -51,6 +55,18 @@ void print_expr(AstExpr* expr) {
                 printf("[]"); break;
             case DOT:
                 printf("."); break;
+            case SUBTRACT:
+                printf("-"); break;
+            case EQUAL:
+                printf("=="); break;
+            case NOT_EQUAL:
+                printf("!="); break;
+            case MORE_EQUAL:
+                printf(">="); break;
+            case LESS_EQUAL:
+                printf("<="); break;
+            case NOT:
+                printf("!"); break;
         }
         printf(" "); 
         print_expr(expr->binary_operation.left);
@@ -67,16 +83,6 @@ void print_expr(AstExpr* expr) {
     }
 }
 
-char* read_file(FILE* file) {
-    fseek(file, 0, SEEK_END);
-    long filesize = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    char* buff = (char*)malloc(filesize+1);
-    fread(buff,1,filesize,file);
-    fseek(file, 0, SEEK_SET);
-    buff[filesize+1] = '\0';
-    return buff;
-}
 
 int main(int argc, char* argv[]) {
     //for(int n = 0; n < argc; n++) {
@@ -84,10 +90,10 @@ int main(int argc, char* argv[]) {
     //}
     FILE* f = fopen("./input2.txt","r");
 
-    char* source = read_file(f);
-    printf("source: \n%s",source);
+    String source = String_readfile(f);
+    printf("source: \n%s",source.data);
 
-    Lexer lexer = lex_file(f);
+    Lexer lexer = lex_file(source);
 
     for( int n = 0; lexer.tokens[n-1].kind != EOF_TOKEN ; n++) {
         Token t = lexer.tokens[n];
