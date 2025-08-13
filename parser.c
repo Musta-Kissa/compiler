@@ -21,6 +21,18 @@ AstExpr* AST_make_binary(AstExpr* left, Token opp, AstExpr* right) {
     node->binary_operation.right        = right;
     return node;
 }
+AstExpr* Ast_make_number(Token number) {
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    node->type = AST_NUMBER;
+    node->number.token = number;
+    return node;
+}
+AstExpr* Ast_make_ident(Token ident) {
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    node->type = AST_IDENTIFIER;
+    node->identifier.token = ident;
+    return node;
+}
 
 int get_binding_power(TokenKind opp) {
     switch(opp){
@@ -32,7 +44,7 @@ int get_binding_power(TokenKind opp) {
         case EQUAL:             return 2;
 
         case ADDITION:          return 3;
-        case SUBTRACT:          return 3;
+        case MINUS:             return 3;
         case MULTIPLICATION:    return 4;
         case DIVITION:          return 4;
         case NOT:               return 5;
@@ -41,9 +53,28 @@ int get_binding_power(TokenKind opp) {
 
     }
 }
+int is_type(Token k) {
+    switch(k.kind) {
+        case INT:
+        case FLOAT:
+            return 1;
+        default:
+            return 0;
+    }
+}
 
-int is_opp(TokenKind k) {
-    switch(k) {
+int is_unary(Token k) {
+    switch(k.kind) {
+        case NOT:
+        case MINUS:
+            return 1;
+        default: 
+            return 0;
+    }
+}
+
+int is_opp(Token k) {
+    switch(k.kind) {
         case DOT: 
         case SUBSCRIPT_OPEN: 
         case LESS_THEN: 
@@ -51,9 +82,8 @@ int is_opp(TokenKind k) {
         case MULTIPLICATION:
         case ADDITION:
         case DIVITION:
-        case SUBTRACT:
+        case MINUS:
         case EQUAL:
-        case NOT:
         case NOT_EQUAL:
         case LESS_EQUAL:
         case MORE_EQUAL:
@@ -77,7 +107,7 @@ AstExpr* parse_args(Lexer* lexer) {
             arg_node ->argument.next = parse_args(lexer);
             return arg_node;
         default:
-            PANIC("%s %d: expected COMMA or CLOSE_PARENT after expr in function call, got: %s",__FILE__,__LINE__,format_enum(next.kind));
+            PANIC("%s %d: expected COMMA or CLOSE_PARENT after expr in function call, got: %s",__FILE__,__LINE__,format_enum(next));
     }
 }
 
@@ -95,9 +125,45 @@ AstExpr* parse_function_call(Lexer* lexer,Token ident) {
     return node;
 }
 
+AstExpr* parse_unary(Lexer* lexer, Token opp) {
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    node->type = AST_UNARY_OPERATION;
+    node->unary_operation.opp_token = opp;
+    Token next = Lexer_next(lexer);    
+
+    switch( next.kind ) {
+        case OPEN_PARENT:
+            node->unary_operation.right = parse_expr(lexer,0);
+            ASSERT(Lexer_next(lexer).kind == CLOSE_PARENT, 
+                    "%s %d: expected close CLOSE_PARENT got: %s", __FILE__,__LINE__,format_enum(Lexer_peek_back(lexer)));
+            return node;
+        case IDENT: 
+            if( Lexer_peek(lexer).kind == OPEN_PARENT ) { // FUNC_CALL
+                Lexer_next(lexer);
+                node->unary_operation.right = parse_function_call(lexer,next);
+            } else {
+                node->unary_operation.right = Ast_make_ident(next);
+            }
+            return node;
+        case NUMBER:
+            node->unary_operation.right = Ast_make_number(next);
+            return node;
+        default:
+            PANIC("%s %d: expected IDENT or NUMBER after UNARY_OPERATION (%s), got: %s",
+                  __FILE__,
+                  __LINE__,
+                  format_enum(opp),
+                  format_enum(next));
+    }
+}
+
 AstExpr* parse_leaf(Lexer* lexer) {
     Token t = Lexer_next(lexer);
     AstExpr* leaf = (AstExpr*)malloc(sizeof(AstExpr));
+
+    if( is_unary(t) ){
+        return parse_unary(lexer,t);
+    }
     switch(t.kind) {
         case IDENT:
             if( Lexer_peek(lexer).kind == OPEN_PARENT ) {
@@ -120,13 +186,12 @@ AstExpr* parse_leaf(Lexer* lexer) {
         case OPEN_PARENT:
             return NULL;
 
-        // HERE implement unary
         default:
             PANIC("%s %d: expected IDENT or NUMBER or STRING after %s, got: %s",
                   __FILE__,
                   __LINE__,
-                  format_enum(Lexer_peek_back(lexer).kind),
-                  format_enum(t.kind));
+                  format_enum(Lexer_peek_back(lexer)),
+                  format_enum(t));
     };
 }
 
@@ -140,13 +205,14 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
     if( next.kind == CLOSE_PARENT  || next.kind == SUBSCRIPT_CLOSE ) {
         return left; //PRETEND EOF
     }
-    if( !is_opp(next.kind)) { // EOF
-        ASSERT((next.kind == SEMICOLON || next.kind == COMMA), "%s %d: expected SEMICOLON or COMMA, got %s, lexer idx: %d",
-                __FILE__,
-                __LINE__,
-                format_enum(next.kind),
-                lexer->idx
-                );
+    /*
+    if( is_unary(next.kind) && Lexer_peek_back(lexer).kind != ) { // ERROR
+        PANIC("%s %d: expected SEMICOLON, COMMA, or BINARY_OPP got UNARY_OPP (%s), lexer idx: %d", __FILE__, __LINE__, format_enum(next.kind), lexer->idx);
+    }
+    */
+    if( !is_opp(next)) { // EOF
+        ASSERT((next.kind == SEMICOLON || next.kind == COMMA || next.kind == OPEN_CURRLY_PARENT ), 
+                "%s %d: expected SEMICOLON, COMMA or OPEN_CURRLY_PARENT, got %s, lexer idx: %d", __FILE__, __LINE__, format_enum(next), lexer->idx);
         return left;
     }
 
@@ -159,7 +225,7 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
         if( next.kind == SUBSCRIPT_OPEN) {
             right = parse_expr(lexer,0);
             ASSERT(Lexer_next(lexer).kind == SUBSCRIPT_CLOSE, 
-                    "%s %d: expected close CLOSE_PARENT got: %s", __FILE__, __LINE__, format_enum(Lexer_peek_back(lexer).kind));
+                    "%s %d: expected close CLOSE_PARENT got: %s", __FILE__, __LINE__, format_enum(Lexer_peek_back(lexer)));
         } else {
             right = parse_expr(lexer,next_bp);
         }
@@ -172,12 +238,13 @@ AstExpr* parse_expr(Lexer* lexer, int min_bp) {
         ASSERT(min_bp == 0, "%s %d: expected SEMICOLON should be at the begginig of the expr",__FILE__,__LINE__);
         return NULL;
     }
+
     AstExpr* left = parse_leaf(lexer);
-    if( left == NULL ) {
-        // OPENING PARENT
+    if( left == NULL ) // OPENING PARENT
+    { 
         left = parse_expr(lexer,0);
         ASSERT(Lexer_next(lexer).kind == CLOSE_PARENT, 
-                "%s %d: expected close CLOSE_PARENT got: %s", __FILE__,__LINE__,format_enum(Lexer_peek_back(lexer).kind));
+                "%s %d: expected close CLOSE_PARENT got: %s", __FILE__,__LINE__,format_enum(Lexer_peek_back(lexer)));
     }
     while(true) {
         AstExpr* node = parse_incrising_bp(lexer,left,min_bp);
@@ -188,53 +255,146 @@ AstExpr* parse_expr(Lexer* lexer, int min_bp) {
     }
 }
 
-
-/*
-typedef struct Expr {
-    Token opp;
-    struct Expr* lhs;
-    struct Expr* rhs;
-}Expr;
-
-Expr* parse_expr(Lexer* lexer, int curr_bp) {
-    Token t = Lexer_next(lexer);
-
-    if (t.kind != IDENT && t.kind != NUMBER && t.kind != OPEN_PARENT ) {
-        PANIC("expected a NUMBER or \'(\', got \"%s\"",format_enum(t.kind));
-    }
-
-    Expr* lhs = (Expr*)malloc(sizeof(Expr));
-    Expr* rhs;
-
-    if ( t.kind == OPEN_PARENT) {
-        lhs = parse_expr(lexer,0);
-        if (Lexer_next(lexer).kind != CLOSE_PARENT) {
-            PANIC("Missing closing parenthesis");
-        }
+AstExpr* parse_decl(Lexer* lexer,Token type, Token ident) {
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+        node->type = AST_DECLARATION;
+        node->declaration.type = type;
+        node->declaration.name = ident;
+    Token next = Lexer_next(lexer);
+    if( next.kind == SEMICOLON ) {
+        node->declaration.value = NULL;
+    } else if( next.kind == ASSIGN ) {
+        node->declaration.value = parse_expr(lexer,0);
+        ASSERT( (Lexer_next(lexer).kind == SEMICOLON ), "%s %d: Expected SIMICOL after assigment expr, got %s",format_enum(Lexer_peek_back(lexer)));
     } else {
-        lhs->opp = t;
+        PANIC("%s %d: expected SEMICOLON or ASSIGN, got %s",__FILE__,__LINE__,format_enum(next));
     }
-
-    while(1) {
-        t = Lexer_peek(lexer);
-        if (!is_opp(t.kind)) {
-            if (t.kind == EOF_TOKEN || t.kind == CLOSE_PARENT) {
-                break;
-            }
-            PANIC("expected a EOF or CLOSE_PARENT, got \"%s\"",format_enum(t.kind));
-        }
-        int binding_power = get_binding_power(t.kind);
-        if( binding_power <= curr_bp ) {
-            break;
-        }
-        Lexer_next(lexer);
-        
-        rhs = parse_expr(lexer,binding_power);
-
-        Expr* old_lhs = lhs;
-        lhs = (Expr*)malloc(sizeof(Expr));
-        *lhs = (Expr){ .opp = t, .lhs = old_lhs, .rhs = rhs};
-    }
-    return lhs;
+    ASSERT( (Lexer_curr(lexer).kind == SEMICOLON), "%s %d: Expected SEMICOLON, got %s, lexer idx:%d",__FILE__,__LINE__,format_enum(Lexer_peek_back(lexer)),lexer->idx);
+    return node;
+    
 }
-*/
+
+AstExpr* parse_arg_decl(Lexer* lexer) {
+    AstExpr* arg_node = (AstExpr*)malloc(sizeof(AstExpr));
+        arg_node->type = AST_ARGUMENT_DECLARATION;
+        arg_node->argument_decl.type = Lexer_next(lexer);
+    ASSERT( is_type(arg_node->argument_decl.type) ,"%s %d: expected TYPE for arg decl, got %s",__FILE__,__LINE__,format_enum(arg_node->argument_decl.type) );
+
+        arg_node->argument_decl.ident = Lexer_next(lexer);
+    ASSERT( arg_node->argument_decl.ident.kind == IDENT ,"%s %d: expected TYPE for arg decl, got %s",__FILE__,__LINE__,format_enum(arg_node->argument_decl.ident) );
+
+    Token next = Lexer_next(lexer);
+    switch(next.kind) {
+        case CLOSE_PARENT:
+            arg_node->argument_decl.next = NULL;
+            return arg_node;
+        case COMMA:
+            arg_node ->argument_decl.next = parse_arg_decl(lexer);
+            return arg_node;
+        default:
+            PANIC("%s %d: expected COMMA or CLOSE_PARENT after ARG_DECL in FUNC_DECL, got: %s",__FILE__,__LINE__,format_enum(next));
+    }
+}
+
+AstExpr* parse_compound_statement(Lexer* lexer) {
+    ASSERT( (Lexer_next(lexer).kind == OPEN_CURRLY_PARENT) ,"%s %d: expected OPEN_CURRLY_PARENT",__FILE__,__LINE__);
+    
+    if( Lexer_peek(lexer).kind == CLOSE_CURRLY_PARENT) { // EMPTY STATEMENT
+        return NULL;
+    } else {
+        AstExpr* tmp = parse_statement(lexer);
+        ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after compound statement, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+        return tmp;
+    }
+}
+
+AstExpr* parse_func_decl(Lexer* lexer,Token type,Token ident) {
+    AstExpr* func_decl_node = (AstExpr*)malloc(sizeof(AstExpr));
+        func_decl_node->type = AST_FUNCTION_DECLARATION;
+        func_decl_node->function_declaration.return_type= type;
+        func_decl_node->function_declaration.name = ident;
+
+    if( Lexer_peek(lexer).kind == CLOSE_PARENT) { // NO ARGS
+        func_decl_node->function_declaration.args = NULL;
+        Lexer_next(lexer);
+    } else {
+        func_decl_node->function_declaration.args = parse_arg_decl(lexer);
+    }
+    ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{' after function decl ,got %s",__FILE__,__LINE__,format_enum(Lexer_peek(lexer)));
+    func_decl_node->function_declaration.body = parse_compound_statement(lexer);
+    ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after func body, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+    return func_decl_node;
+}
+
+AstExpr* parse_if(Lexer* lexer) {
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+        node->type = AST_IF_STATEMENT;
+    ASSERT( (Lexer_peek(lexer).kind == OPEN_PARENT ), "%s %d: Expected OPEN_PARENT after IF keyword",__FILE__,__LINE__);
+    node->if_statement.condition = parse_expr(lexer,0);
+    ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT ), "%s %d: Expected CLOSE_PARENT after IF condition, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
+
+
+    node->if_statement.body = parse_compound_statement(lexer);
+    ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after func body, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+    return node;
+}
+AstExpr* parse_while(Lexer* lexer) {
+    PANIC("%s %d: NOT IMPLEMENTED",__FILE__,__LINE__);
+}
+AstExpr* parse_for(Lexer* lexer) {
+    PANIC("%s %d: NOT IMPLEMENTED",__FILE__,__LINE__);
+}
+
+AstExpr* parse_statement(Lexer* lexer) {
+    Token next = Lexer_next(lexer);
+    if( next.kind == EOF_TOKEN || next.kind == CLOSE_CURRLY_PARENT ) 
+        return NULL;
+
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+
+    switch( next.kind ) {
+        case IF:
+            node = parse_if(lexer);
+            node->if_statement.next = parse_statement(lexer);
+            return node;
+        case FOR:
+            node = parse_for(lexer);
+            //node->for_statement.next = parse_statement(lexer);
+            return node;
+        case WHILE:
+            node = parse_while(lexer);
+            //node->for_statement.next = parse_statement(lexer);
+            return node;
+        //case ELSE:
+    }
+
+    Token type = next;
+        ASSERT( is_type(type) , "%s %d: expected type name, got %s",__FILE__,__LINE__,format_enum(type));
+    Token ident = Lexer_next(lexer);
+        ASSERT( (ident.kind == IDENT) , "%s %d: expected func ident ",__FILE__,__LINE__);
+
+    next = Lexer_peek(lexer);
+    if( next.kind == OPEN_PARENT ) { //FUNC_DECL
+        Lexer_next(lexer);
+        node = parse_func_decl(lexer,type,ident);
+        node->function_declaration.next = parse_statement(lexer);
+        if( node->function_declaration.next == NULL) {
+            ASSERT( (Lexer_curr(lexer).kind == EOF_TOKEN || Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT), "%s %d: Expected EOF_TOKEN or CLOSE_CURRLY_PARENT because statement.next == NULL, got %s, lexer idx:%d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+        }
+        return node;
+    } else if ( next.kind ==  ASSIGN || next.kind == SEMICOLON ) {
+        node = parse_decl(lexer,type,ident);
+        node->declaration.next = parse_statement(lexer);
+        if( node->declaration.next == NULL) {
+            ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT), "%s %d: Expected CLOSE_CURRLY_PARENT, got %s, lexer idx:%d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+        }
+        return node;
+    } else {
+        PANIC("%s %d: expected OPEN_PARENT, got %s",__FILE__,__LINE__,format_enum(next));
+    }
+}
+
+AstExpr* parse_program(Lexer* lexer) {
+    AstExpr* ast = parse_statement(lexer);
+    return ast;
+}

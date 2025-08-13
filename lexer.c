@@ -12,8 +12,8 @@
     } \
 }
 
-const char* format_enum(TokenKind k) {
-    switch(k) {
+const char* format_enum(Token k) {
+    switch(k.kind) {
         case IDENT:                 return "IDENT";
         case NUMBER:                return "NUMBER";
         case STRING:                return "STRING";
@@ -35,21 +35,38 @@ const char* format_enum(TokenKind k) {
         case MORE_THEN:             return "MORE_THEN";
         case SUBSCRIPT_OPEN:        return "SUBSCRIPT_OPEN";
         case SUBSCRIPT_CLOSE:       return "SUBSCRIPT_CLOSE";
-        case SUBTRACT:              return "SUBTRACT";
+        case MINUS:                 return "MINUS";
         case EQUAL:                 return "EQUAL";
         case NOT:                   return "NOT";
         case NOT_EQUAL:             return "NOT_EQUAL";
         case LESS_EQUAL:            return "LESS_EQUAL";
         case MORE_EQUAL:            return "MORE_EQUAL";
+        case IF:                    return "IF";
+        case ELSE:                  return "ELSE";
+        case WHILE:                 return "WHILE";
+        case FOR:                   return "FOR";
     }
 }
 
+int get_keyword(char* buff,Token* t) {
+    const char*     keywords[]      = {"int","float","if","else","for","while"};
+    const TokenKind keyword_kinds[] = { INT , FLOAT , IF , ELSE , FOR , WHILE };
+    const int len = sizeof(keywords) / sizeof(keywords[0]);
+
+    for ( int i = 0; i < len; i++) {
+        if( strcmp(buff,keywords[i]) == 0 ) {
+            *t = (Token){ .kind=keyword_kinds[i] };
+            return 0;
+        }
+    }
+    return -1;
+}
 
 int is_terminal(char c) {
     const char terminals[] = {'!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
 
-    for ( int i = 0; i <= len; i++) {
+    for ( int i = 0; i < len; i++) {
         if ( c == terminals[i])
             return 1;
     }
@@ -62,11 +79,14 @@ Lexer Lexer_new(Token* tokens) {
 }
 
 Token Lexer_next(Lexer* lexer) {
-    Token next = lexer->tokens[++lexer->idx];
-    if( next.kind == EOF_TOKEN) {
-        lexer->idx--;
+    if( lexer->tokens[lexer->idx].kind == EOF_TOKEN) {
+        return (Token){ .kind= EOF_TOKEN};
     }
+    Token next = lexer->tokens[++lexer->idx];
     return next;
+}
+Token Lexer_curr(Lexer* lexer) {
+    return lexer->tokens[lexer->idx];
 }
 
 Token Lexer_peek(Lexer* lexer) {
@@ -88,11 +108,11 @@ Lexer lex_file(String string) {
         ASSERT((tokens_idx < 1000),"%s %d: EXEEDED MAX TOKENS",__FILE__,__LINE__);
         switch(c) {
             case '(': tokens[tokens_idx++] = (Token){ .kind=OPEN_PARENT };          continue;
-            case '{': tokens[tokens_idx++] = (Token){ .kind=OPEN_CURRLY_PARENT };   continue;
             case ')': tokens[tokens_idx++] = (Token){ .kind=CLOSE_PARENT };         continue;
+            case '{': tokens[tokens_idx++] = (Token){ .kind=OPEN_CURRLY_PARENT };   continue;
             case '}': tokens[tokens_idx++] = (Token){ .kind=CLOSE_CURRLY_PARENT };  continue;
             case '+': tokens[tokens_idx++] = (Token){ .kind=ADDITION };             continue;
-            case '-': tokens[tokens_idx++] = (Token){ .kind=SUBTRACT };             continue;
+            case '-': tokens[tokens_idx++] = (Token){ .kind=MINUS };             continue;
             case '*': tokens[tokens_idx++] = (Token){ .kind=MULTIPLICATION };       continue;
             case '/': tokens[tokens_idx++] = (Token){ .kind=DIVITION };             continue;
             case ';': tokens[tokens_idx++] = (Token){ .kind=SEMICOLON };            continue;
@@ -174,17 +194,29 @@ Lexer lex_file(String string) {
             String_ungetc(&string);
             tmp[tmp_idx++] = '\0'; tmp_idx = 0;
 
+            Token t;
+            if( get_keyword(tmp,&t) != -1 ) {
+                tokens[tokens_idx++] = t;
+            } else {
+                t = (Token){ .kind=IDENT, .value.string = (char*)malloc(sizeof(char)*100) };
+                strncpy(t.value.string,tmp,100);
+                tokens[tokens_idx++] = t;
+            }
+
+            /*
             if( strcmp(tmp,"int") == 0 ) {
                 tokens[tokens_idx++] = (Token){ .kind=INT };
             } 
             else if( strcmp(tmp,"float") == 0 ) {
                 tokens[tokens_idx++] = (Token){ .kind=FLOAT };
             } 
+
             else {
                 Token t = (Token){ .kind=IDENT, .value.string = (char*)malloc(sizeof(char)*100) };
                 strncpy(t.value.string,tmp,100);
                 tokens[tokens_idx++] = t;
             }
+            */
         }
     }
     tokens[tokens_idx++] = (Token){ .kind = EOF_TOKEN };

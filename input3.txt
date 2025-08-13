@@ -1,0 +1,15 @@
+int foo(int a,float b) {
+    int f = 1+3*9;
+}
+int bar(int c,float d) {
+    int e = foo(c,d) + 3;
+
+}
+int global = foo(c,d) + 3;
+
+int bazz(int c,float d) {
+    int e = foo(c,d) + 3;
+    if ( c ) {
+        int inside_if = hello + 3 * 0;
+    }
+}

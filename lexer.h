@@ -21,6 +21,11 @@ typedef enum TokenKind {
     DOT,
     EOF_TOKEN,
 
+    IF,
+    ELSE,
+    WHILE,
+    FOR,
+
     ASSIGN,
     SEMICOLON,
     COMMA,
@@ -32,7 +37,7 @@ typedef enum TokenKind {
     SUBSCRIPT_OPEN,
     SUBSCRIPT_CLOSE,
 
-    SUBTRACT,
+    MINUS,
     EQUAL,
     NOT,
     NOT_EQUAL,
@@ -57,10 +62,11 @@ typedef struct Lexer {
 
 Token Lexer_next(Lexer* lexer);
 Token Lexer_peek(Lexer* lexer);
+Token Lexer_curr(Lexer* lexer);
 Token Lexer_peek_back(Lexer* lexer);
 
 int is_terminal(char c);
 Lexer lex_file(String string);
-const char* format_enum(TokenKind k);
+const char* format_enum(Token k);
 
 #endif
