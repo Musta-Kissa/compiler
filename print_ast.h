@@ -53,6 +53,10 @@ void print_expr(AstExpr* expr) {
                 printf("!"); break;
             case MINUS:
                 printf("-"); break;
+            case PLUS_PLUS:
+                printf("++"); break;
+            case MINUS_MINUS:
+                printf("--"); break;
         }
         printf(" "); 
         print_expr(expr->unary_operation.right);
@@ -61,7 +65,7 @@ void print_expr(AstExpr* expr) {
     if( expr->type == AST_BINARY_OPERATION ) {
         printf("(");
         switch (expr->binary_operation.opp_token.kind) {
-            case ADDITION:
+            case PLUS:
                 printf("+"); break;
             case DIVITION:
                 printf("/"); break;
@@ -87,6 +91,8 @@ void print_expr(AstExpr* expr) {
                 printf("<="); break;
             case NOT:
                 printf("!"); break;
+            default: 
+                PANIC("Oparation printing not supported");
         }
         printf(" "); 
         print_expr(expr->binary_operation.left);
@@ -136,6 +142,22 @@ void print_if(AstExpr* node) {
     print_statements(node->if_statement.body);
     printf("\n");
 }
+void print_for(AstExpr* node) {
+    printf("for:\n\tinit = ");
+    print_decl(node->for_statement.initial);
+    printf("\tcondition = ");
+    print_expr(node->for_statement.condition);
+    printf("\n\titeration = ");
+    print_expr(node->for_statement.iteration);
+    printf("\n\tbody = \n");
+    print_statements(node->for_statement.body);
+}
+void print_while(AstExpr* node) {
+    printf("\n\twhile: condition = ");
+    print_expr(node->while_statement.condition);
+    printf("\n\tbody = \n");
+    print_statements(node->while_statement.body);
+}
 
 void print_statements(AstExpr* stm) {
     AstExpr* next = stm;
@@ -151,7 +173,15 @@ void print_statements(AstExpr* stm) {
                 break;
             case AST_IF_STATEMENT:
                 print_if(next); 
-                next = next->declaration.next;
+                next = next->if_statement.next;
+                break;
+            case AST_FOR_STATEMENT:
+                print_for(next); 
+                next = next->for_statement.next;
+                break;
+            case AST_WHILE_STATEMENT:
+                print_while(next); 
+                next = next->while_statement.next;
                 break;
             default:
                 PANIC("NOT SUPPORTED");

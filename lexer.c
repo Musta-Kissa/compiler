@@ -16,9 +16,12 @@ const char* format_enum(Token k) {
     switch(k.kind) {
         case IDENT:                 return "IDENT";
         case NUMBER:                return "NUMBER";
+
         case STRING:                return "STRING";
         case INT:                   return "INT";
         case FLOAT:                 return "FLOAT";
+        case VOID:                  return "VOID";
+
         case OPEN_PARENT:           return "OPEN_PARENT";
         case CLOSE_PARENT:          return "CLOSE_PARENT";
         case OPEN_CURRLY_PARENT:    return "OPEN_CURRLY_PARENT";
@@ -28,7 +31,7 @@ const char* format_enum(Token k) {
         case SEMICOLON:             return "SEMICOLON";
         case COMMA:                 return "COMMA";
         case DOT:                   return "DOT";
-        case ADDITION:              return "ADDITION";
+        case PLUS:              return "PLUS";
         case MULTIPLICATION:        return "MULTIPLICATION";
         case DIVITION:              return "DIVITION";
         case LESS_THEN:             return "LESS_THEN";
@@ -45,12 +48,14 @@ const char* format_enum(Token k) {
         case ELSE:                  return "ELSE";
         case WHILE:                 return "WHILE";
         case FOR:                   return "FOR";
+        case PLUS_PLUS:             return "PLUS_PLUS";
+        case MINUS_MINUS:           return "MINUS_MINUS";
     }
 }
 
 int get_keyword(char* buff,Token* t) {
-    const char*     keywords[]      = {"int","float","if","else","for","while"};
-    const TokenKind keyword_kinds[] = { INT , FLOAT , IF , ELSE , FOR , WHILE };
+    const char*     keywords[]      = {"int","float","void","if","else","for","while"};
+    const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE };
     const int len = sizeof(keywords) / sizeof(keywords[0]);
 
     for ( int i = 0; i < len; i++) {
@@ -63,7 +68,7 @@ int get_keyword(char* buff,Token* t) {
 }
 
 int is_terminal(char c) {
-    const char terminals[] = {'!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '*', '/', '<', '>', ';', ' ', '\n','\"'};
+    const char terminals[] = {'!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '-', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
 
     for ( int i = 0; i < len; i++) {
@@ -111,8 +116,6 @@ Lexer lex_file(String string) {
             case ')': tokens[tokens_idx++] = (Token){ .kind=CLOSE_PARENT };         continue;
             case '{': tokens[tokens_idx++] = (Token){ .kind=OPEN_CURRLY_PARENT };   continue;
             case '}': tokens[tokens_idx++] = (Token){ .kind=CLOSE_CURRLY_PARENT };  continue;
-            case '+': tokens[tokens_idx++] = (Token){ .kind=ADDITION };             continue;
-            case '-': tokens[tokens_idx++] = (Token){ .kind=MINUS };             continue;
             case '*': tokens[tokens_idx++] = (Token){ .kind=MULTIPLICATION };       continue;
             case '/': tokens[tokens_idx++] = (Token){ .kind=DIVITION };             continue;
             case ';': tokens[tokens_idx++] = (Token){ .kind=SEMICOLON };            continue;
@@ -120,34 +123,48 @@ Lexer lex_file(String string) {
             case '.': tokens[tokens_idx++] = (Token){ .kind=DOT };                  continue;
             case '[': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_OPEN };       continue;
             case ']': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_CLOSE };      continue;
+            case '+': 
+                if( String_getc(&string) == '+') {
+                    tokens[tokens_idx++] = (Token){ .kind=PLUS_PLUS };
+                } else {
+                    String_ungetc(&string);
+                    tokens[tokens_idx++] = (Token){ .kind=PLUS };  
+                } continue;
+            case '-': 
+                if( String_getc(&string) == '-') {
+                    tokens[tokens_idx++] = (Token){ .kind=MINUS_MINUS };
+                } else {
+                    String_ungetc(&string);
+                    tokens[tokens_idx++] = (Token){ .kind=MINUS };       
+                } continue;
             case '<':
                 if( String_getc(&string) == '=') {
-                    tokens[tokens_idx++] = (Token){ .kind=LESS_EQUAL };                  continue;
+                    tokens[tokens_idx++] = (Token){ .kind=LESS_EQUAL };   
                 } else {
                     String_ungetc(&string);
-                    tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };                 continue;
-                }
+                    tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };     
+                } continue;
             case '>':
                 if( String_getc(&string) == '=') {
-                    tokens[tokens_idx++] = (Token){ .kind=MORE_EQUAL };                  continue;
+                    tokens[tokens_idx++] = (Token){ .kind=MORE_EQUAL };     
                 } else {
                     String_ungetc(&string);
-                    tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };                 continue;
-                }
+                    tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };            
+                } continue;
             case '=':
                 if( String_getc(&string) == '=') {
-                    tokens[tokens_idx++] = (Token){ .kind=EQUAL };                  continue;
+                    tokens[tokens_idx++] = (Token){ .kind=EQUAL };                 
                 } else {
                     String_ungetc(&string);
-                    tokens[tokens_idx++] = (Token){ .kind=ASSIGN };                 continue;
-                }
+                    tokens[tokens_idx++] = (Token){ .kind=ASSIGN };                 
+                } continue;
             case '!':
                 if( String_getc(&string) == '=') {
-                    tokens[tokens_idx++] = (Token){ .kind=NOT_EQUAL };              continue;
+                    tokens[tokens_idx++] = (Token){ .kind=NOT_EQUAL }; 
                 } else {
                     String_ungetc(&string);
-                    tokens[tokens_idx++] = (Token){ .kind=NOT };                    continue;
-                }
+                    tokens[tokens_idx++] = (Token){ .kind=NOT };      
+                } continue;
         }
         switch(c) {
             case '\t':

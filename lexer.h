@@ -13,6 +13,7 @@ typedef enum TokenKind {
 
     INT,
     FLOAT,
+    VOID,
 
     OPEN_PARENT,
     CLOSE_PARENT,
@@ -29,13 +30,15 @@ typedef enum TokenKind {
     ASSIGN,
     SEMICOLON,
     COMMA,
-    ADDITION,
+    PLUS,
     MULTIPLICATION,
     DIVITION,
     LESS_THEN,
     MORE_THEN,
     SUBSCRIPT_OPEN,
     SUBSCRIPT_CLOSE,
+    PLUS_PLUS,
+    MINUS_MINUS,
 
     MINUS,
     EQUAL,

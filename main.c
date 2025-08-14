@@ -14,9 +14,6 @@
 #include "print_ast.h"
 
 int main(int argc, char* argv[]) {
-    //for(int n = 0; n < argc; n++) {
-        //printf("arg%d %s\n",n,argv[n]);
-    //}
     FILE* f = fopen("./input3.txt","r");
 
     String source = String_readfile(f);
