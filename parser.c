@@ -33,6 +33,13 @@ AstExpr* Ast_make_ident(Token ident) {
     node->identifier.token = ident;
     return node;
 }
+AstExpr* Ast_make_unary(Token opp, AstExpr* right) {
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    node->type = AST_UNARY_OPERATION;
+    node->unary_operation.opp_token = opp;
+    node->unary_operation.right = right;
+    return node;
+}
 
 int get_binding_power(Token opp) {
     switch(opp.kind){
@@ -163,34 +170,43 @@ AstExpr* parse_unary(Lexer* lexer, Token opp) {
     }
 }
 
-AstExpr* parse_leaf(Lexer* lexer) {
-    Token t = Lexer_next(lexer);
-    AstExpr* leaf = (AstExpr*)malloc(sizeof(AstExpr));
+// 2 = unary; 1 = terminal; 0 = open_parent
+int parse_leaf(Lexer* lexer,AstExpr** left) {
+    Token t = Lexer_peek(lexer);
 
     if( is_unary(t) ){
-        return parse_unary(lexer,t);
+        *left = NULL;
+        return 2;
     }
+    Lexer_next(lexer);
+    AstExpr* leaf = (AstExpr*)malloc(sizeof(AstExpr));
+
     switch(t.kind) {
         case IDENT:
             if( Lexer_peek(lexer).kind == OPEN_PARENT ) {
                 //FunctionCall
                 Lexer_next(lexer); 
-                return parse_function_call(lexer,t);
+                *left = parse_function_call(lexer,t);
+                return 1;
             } else {
                 leaf->type = AST_IDENTIFIER;
                 leaf->identifier.token = t;
-                return leaf;
+                *left = leaf;
+                return 1;
             }
         case NUMBER:
             leaf->type = AST_NUMBER;
             leaf->number.token = t;
-            return leaf;
+            *left = leaf;
+            return 1;
         case STRING:
             leaf->type = AST_STRING;
             leaf->number.token = t;
-            return leaf;
+            *left = leaf;
+            return 1;
         case OPEN_PARENT:
-            return NULL;
+            *left = leaf;
+            return 0;
 
         default:
             PANIC("%s %d: expected IDENT or NUMBER or STRING after %s, got: %s",
@@ -209,22 +225,17 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
     Token next = Lexer_peek(lexer);
 
     if( next.kind == CLOSE_PARENT  || next.kind == SUBSCRIPT_CLOSE ) {
-        return left; //PRETEND EOF
+        return NULL; //PRETEND EOF
     }
-    /*
-    if( is_unary(next.kind) && Lexer_peek_back(lexer).kind != ) { // ERROR
-        PANIC("%s %d: expected SEMICOLON, COMMA, or BINARY_OPP got UNARY_OPP (%s), lexer idx: %d", __FILE__, __LINE__, format_enum(next.kind), lexer->idx);
-    }
-    */
-    if( !is_opp(next)) { // EOF
+    if( !is_opp(next) && !is_unary(next)) { // EOF
         ASSERT((next.kind == SEMICOLON || next.kind == COMMA || next.kind == OPEN_CURRLY_PARENT || next.kind == CLOSE_PARENT), 
                 "%s %d: expected SEMICOLON, COMMA , CLOSE_PARENT or OPEN_CURRLY_PARENT, got %s, lexer idx: %d", __FILE__, __LINE__, format_enum(next), lexer->idx);
-        return left;
+        return NULL;
     }
 
     int next_bp = get_binding_power(next);
     if( next_bp <= min_bp ) {
-        return left; // Pretend EOF
+        return NULL; // Pretend EOF
     } else {
         Lexer_next(lexer);
         AstExpr* right;
@@ -235,7 +246,11 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
         } else {
             right = parse_expr(lexer,next_bp);
         }
-        return AST_make_binary(left,next,right);
+        if( left == NULL ) {
+            return Ast_make_unary(next, right);
+        } else {
+            return AST_make_binary(left,next,right);
+        }
     }
     
 }
@@ -245,16 +260,18 @@ AstExpr* parse_expr(Lexer* lexer, int min_bp) {
         return NULL;
     }
 
-    AstExpr* left = parse_leaf(lexer);
-    if( left == NULL ) // OPENING PARENT
+    AstExpr* left;
+    int leaf_return = parse_leaf(lexer,&left);
+    if( leaf_return == 0 ) // OPENING PARENT
     { 
         left = parse_expr(lexer,0);
         ASSERT(Lexer_next(lexer).kind == CLOSE_PARENT, 
                 "%s %d: expected close CLOSE_PARENT got: %s", __FILE__,__LINE__,format_enum(Lexer_peek_back(lexer)));
     }
     while(true) {
-        AstExpr* node = parse_incrising_bp(lexer,left,min_bp);
-        if( node == left ) {
+        AstExpr* node;
+        node = parse_incrising_bp(lexer,left,min_bp);
+        if( node == NULL ) {
             return left;
         } 
         left = node;
