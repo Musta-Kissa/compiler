@@ -106,7 +106,8 @@ typedef struct AstExpr {
             struct AstExpr* next;
         } return_statement;
         struct BlockStatment {
-            struct AstExpr* statements;
+            struct AstExpr* statements; // Can be NULL
+            struct AstExpr* next; // Can be NULL
         } block_statement;
     };
 } AstExpr;

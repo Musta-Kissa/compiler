@@ -57,8 +57,8 @@ const char* format_enum(Token k) {
 }
 
 int get_keyword(char* buff,Token* t) {
-    const char*     keywords[]      = {"int","float","void","if","else","for","while","return"};
-    const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE , RETURN };
+    const char*     keywords[]      = {"int","float","void","if","else","for","while","return","EOF"};
+    const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE , RETURN , EOF_TOKEN};
     const int len = sizeof(keywords) / sizeof(keywords[0]);
 
     for ( int i = 0; i < len; i++) {

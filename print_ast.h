@@ -6,6 +6,13 @@
 #include "my_string.h"
 #include "parser.h"
 
+#define ASSERT(expr, fmt, ...) { \
+    if (!expr) { \
+    printf(fmt "\n", ##__VA_ARGS__); \
+        exit(-1); \
+    } \
+}
+
 /*
     AstExpr* parse_expr(Lexer* lexer, int curr_bp); Done
     AstExpr* parse_arg_decl(Lexer* lexer); Done
@@ -163,6 +170,11 @@ void print_return(AstExpr* node) {
     print_expr(node->return_statement.expression);
     printf("\n");
 }
+void print_block(AstExpr* node) {
+    printf("BLOCK: {\n");
+    print_statements(node->block_statement.statements);
+    printf("}\n");
+}
 
 void print_statements(AstExpr* stm) {
     AstExpr* next = stm;
@@ -191,6 +203,10 @@ void print_statements(AstExpr* stm) {
             case AST_RETURN_STATEMENT:
                 print_return(next); 
                 next = next->return_statement.next;
+                break;
+            case AST_BLOCK_STATEMENT:
+                print_block(next); 
+                next = next->block_statement.next;
                 break;
             default:
                 PANIC("NOT SUPPORTED");

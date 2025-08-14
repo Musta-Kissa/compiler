@@ -319,16 +319,17 @@ AstExpr* parse_arg_decl(Lexer* lexer) {
     }
 }
 
-AstExpr* parse_compound_statement(Lexer* lexer) {
-    ASSERT( (Lexer_next(lexer).kind == OPEN_CURRLY_PARENT) ,"%s %d: expected OPEN_CURRLY_PARENT",__FILE__,__LINE__);
-    
-    if( Lexer_peek(lexer).kind == CLOSE_CURRLY_PARENT) { // EMPTY STATEMENT
-        return NULL;
-    } else {
-        AstExpr* tmp = parse_statement(lexer);
-        ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after compound statement, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
-        return tmp;
-    }
+// expects Lexer_curr() == OPEN_CURRLY_PARENT
+// consumes whole block including ending CLOSE_CURRLY_PARENT '}'
+// doesnt set block_statement.next
+AstExpr* parse_block_statement(Lexer* lexer) {
+    ASSERT( (Lexer_curr(lexer).kind == OPEN_CURRLY_PARENT) ,"%s %d: expected OPEN_CURRLY_PARENT",__FILE__,__LINE__);
+
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+        node->type = AST_BLOCK_STATEMENT;
+        node->block_statement.statements = parse_statement(lexer);
+
+    return node;
 }
 
 AstExpr* parse_func_decl(Lexer* lexer,Token type,Token ident) {
@@ -344,7 +345,7 @@ AstExpr* parse_func_decl(Lexer* lexer,Token type,Token ident) {
         func_decl_node->function_declaration.args = parse_arg_decl(lexer);
     }
     ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{' after function decl ,got %s",__FILE__,__LINE__,format_enum(Lexer_peek(lexer)));
-    func_decl_node->function_declaration.body = parse_compound_statement(lexer);
+    func_decl_node->function_declaration.body = parse_statement(lexer);
     ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after func body, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     return func_decl_node;
 }
@@ -357,8 +358,9 @@ AstExpr* parse_if(Lexer* lexer) {
     ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT ), "%s %d: Expected CLOSE_PARENT after IF condition, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
 
 
-    node->if_statement.body = parse_compound_statement(lexer);
-    ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after func body, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+    ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{', got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+    node->if_statement.body = parse_statement(lexer);
+    ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after if_statement body, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     //Token next = Lexer_peek(lexer);
     //if( next.kind == ELSE ) {
         //Lexer_next(lexer);
@@ -385,7 +387,7 @@ AstExpr* parse_for(Lexer* lexer) {
     node->for_statement.iteration = parse_expr(lexer,0);
     ASSERT( (Lexer_next(lexer).kind == CLOSE_PARENT ), "%s %d: Expected SEMICOLON after IF iteration expr",__FILE__,__LINE__);
 
-    node->for_statement.body = parse_compound_statement(lexer);
+    node->for_statement.body = parse_statement(lexer);
     return node;
 }
 
@@ -396,7 +398,7 @@ AstExpr* parse_while(Lexer* lexer) {
     node->while_statement.condition = parse_expr(lexer,0);
     ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT ), "%s %d: Expected CLOSE_PARENT after WHILE condition iteration expr, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
 
-    node->while_statement.body = parse_compound_statement(lexer);
+    node->while_statement.body = parse_statement(lexer);
     return node;
 }
 AstExpr* parse_return(Lexer* lexer) {
@@ -408,10 +410,13 @@ AstExpr* parse_return(Lexer* lexer) {
     return node;
 }
 
+// expects Lexer_next() == OPEN_CURRLY_PARENT | {KEYWORD} | {DECL}
+// consumes whole statement with ; and } 
 AstExpr* parse_statement(Lexer* lexer) {
-    Token next = Lexer_next(lexer);
+    Token next = Lexer_peek(lexer);
     if( next.kind == EOF_TOKEN || next.kind == CLOSE_CURRLY_PARENT ) 
         return NULL;
+    Lexer_next(lexer);
 
     AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
 
@@ -432,6 +437,11 @@ AstExpr* parse_statement(Lexer* lexer) {
             node = parse_return(lexer);
             node->return_statement.next = parse_statement(lexer);
             return node;
+        case OPEN_CURRLY_PARENT:
+            node = parse_block_statement(lexer);
+            node->block_statement.next = parse_statement(lexer);
+            ASSERT( (Lexer_next(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after if_statement body, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+            return node;
     }
 
     // parse funct / var decl
@@ -446,16 +456,16 @@ AstExpr* parse_statement(Lexer* lexer) {
         Lexer_next(lexer);
         node = parse_func_decl(lexer,type,ident);
         node->function_declaration.next = parse_statement(lexer);
-        if( node->function_declaration.next == NULL) {
-            ASSERT( (Lexer_curr(lexer).kind == EOF_TOKEN || Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT), "%s %d: Expected EOF_TOKEN or CLOSE_CURRLY_PARENT because statement.next == NULL, got %s, lexer idx:%d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
-        }
+        //if( node->function_declaration.next == NULL) {
+            //ASSERT( (Lexer_curr(lexer).kind == EOF_TOKEN || Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT), "%s %d: Expected EOF_TOKEN or CLOSE_CURRLY_PARENT because statement.next == NULL, got %s, lexer idx:%d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+        //}
         return node;
-    } else if ( next.kind ==  ASSIGN || next.kind == SEMICOLON ) {
+    } else if ( next.kind ==  ASSIGN || next.kind == SEMICOLON ) { // DECLARATION
         node = parse_decl(lexer,type,ident);
         node->declaration.next = parse_statement(lexer);
-        if( node->declaration.next == NULL) {
-            ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT), "%s %d: Expected CLOSE_CURRLY_PARENT, got %s, lexer idx:%d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
-        }
+        //if( node->declaration.next == NULL) {
+            //ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT), "%s %d: Expected CLOSE_CURRLY_PARENT, got %s, lexer idx:%d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+        //}
         return node;
     } else {
         PANIC("%s %d: expected OPEN_PARENT, got %s",__FILE__,__LINE__,format_enum(next));
