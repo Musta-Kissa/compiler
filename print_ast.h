@@ -158,6 +158,11 @@ void print_while(AstExpr* node) {
     printf("\n\tbody = \n");
     print_statements(node->while_statement.body);
 }
+void print_return(AstExpr* node) {
+    printf("\n\treturn STM: expr = ");
+    print_expr(node->return_statement.expression);
+    printf("\n");
+}
 
 void print_statements(AstExpr* stm) {
     AstExpr* next = stm;
@@ -182,6 +187,10 @@ void print_statements(AstExpr* stm) {
             case AST_WHILE_STATEMENT:
                 print_while(next); 
                 next = next->while_statement.next;
+                break;
+            case AST_RETURN_STATEMENT:
+                print_return(next); 
+                next = next->return_statement.next;
                 break;
             default:
                 PANIC("NOT SUPPORTED");

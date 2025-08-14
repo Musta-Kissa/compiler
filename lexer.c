@@ -31,7 +31,7 @@ const char* format_enum(Token k) {
         case SEMICOLON:             return "SEMICOLON";
         case COMMA:                 return "COMMA";
         case DOT:                   return "DOT";
-        case PLUS:              return "PLUS";
+        case PLUS:                  return "PLUS";
         case MULTIPLICATION:        return "MULTIPLICATION";
         case DIVITION:              return "DIVITION";
         case LESS_THEN:             return "LESS_THEN";
@@ -44,18 +44,21 @@ const char* format_enum(Token k) {
         case NOT_EQUAL:             return "NOT_EQUAL";
         case LESS_EQUAL:            return "LESS_EQUAL";
         case MORE_EQUAL:            return "MORE_EQUAL";
+
         case IF:                    return "IF";
         case ELSE:                  return "ELSE";
         case WHILE:                 return "WHILE";
         case FOR:                   return "FOR";
+        case RETURN:                return "RETURN";
+
         case PLUS_PLUS:             return "PLUS_PLUS";
         case MINUS_MINUS:           return "MINUS_MINUS";
     }
 }
 
 int get_keyword(char* buff,Token* t) {
-    const char*     keywords[]      = {"int","float","void","if","else","for","while"};
-    const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE };
+    const char*     keywords[]      = {"int","float","void","if","else","for","while","return"};
+    const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE , RETURN };
     const int len = sizeof(keywords) / sizeof(keywords[0]);
 
     for ( int i = 0; i < len; i++) {

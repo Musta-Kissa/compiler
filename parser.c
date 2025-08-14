@@ -359,6 +359,10 @@ AstExpr* parse_if(Lexer* lexer) {
 
     node->if_statement.body = parse_compound_statement(lexer);
     ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after func body, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+    //Token next = Lexer_peek(lexer);
+    //if( next.kind == ELSE ) {
+        //Lexer_next(lexer);
+    //}
     return node;
 }
 
@@ -395,6 +399,14 @@ AstExpr* parse_while(Lexer* lexer) {
     node->while_statement.body = parse_compound_statement(lexer);
     return node;
 }
+AstExpr* parse_return(Lexer* lexer) {
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+        node->type = AST_RETURN_STATEMENT;
+        node->return_statement.expression = parse_expr(lexer,0);
+    Lexer_next(lexer);
+    ASSERT( (Lexer_curr(lexer).kind == SEMICOLON ), "%s %d: Expected SEMICOLON after return expr , got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
+    return node;
+}
 
 AstExpr* parse_statement(Lexer* lexer) {
     Token next = Lexer_next(lexer);
@@ -416,8 +428,13 @@ AstExpr* parse_statement(Lexer* lexer) {
             node = parse_while(lexer);
             node->while_statement.next = parse_statement(lexer);
             return node;
-        //case ELSE:
+        case RETURN:
+            node = parse_return(lexer);
+            node->return_statement.next = parse_statement(lexer);
+            return node;
     }
+
+    // parse funct / var decl
 
     Token type = next;
         ASSERT( is_type(type) , "%s %d: expected type name, got %s",__FILE__,__LINE__,format_enum(type));

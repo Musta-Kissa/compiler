@@ -24,12 +24,12 @@ typedef enum {
     AST_DECLARATION,    
     AST_FUNCTION_DECLARATION,
     AST_COMPOUND_STATEMENT, 
-    //AST_RETURN_STATEMENT,   
+    AST_RETURN_STATEMENT,   
     AST_IF_STATEMENT,       
     AST_WHILE_STATEMENT,   
     AST_FOR_STATEMENT,    
-    AST_EXPRESSION_STATEMENT 
-    //AST_EMPTY_STATEMENT,  
+    AST_EXPRESSION_STATEMENT,
+    AST_BLOCK_STATEMENT,
 } Ast_ExprType;
 
 typedef struct AstExpr {
@@ -80,26 +80,34 @@ typedef struct AstExpr {
             Token return_type;   
             Token name;          
             struct AstExpr* args;      
-            struct AstExpr* body;
+            struct AstExpr* body; // BlockStatment
             struct AstExpr* next; // CAN BE NULL
         } function_declaration;   
         struct IfStatement {
             struct AstExpr* condition;
-            struct AstExpr* body;
+            struct AstExpr* body; // BlockStatment
+            struct AstExpr* else_block;
             struct AstExpr* next;
         } if_statement;
         struct ForStatement {
             struct AstExpr* initial;
             struct AstExpr* condition;
             struct AstExpr* iteration;
-            struct AstExpr* body;
+            struct AstExpr* body; // BlockStatment
             struct AstExpr* next;
         } for_statement;
         struct WhileStatement {
             struct AstExpr* condition;
-            struct AstExpr* body;
+            struct AstExpr* body; // BlockStatment
             struct AstExpr* next;
         } while_statement;
+        struct ReturnStatement {
+            struct AstExpr* expression;
+            struct AstExpr* next;
+        } return_statement;
+        struct BlockStatment {
+            struct AstExpr* statements;
+        } block_statement;
     };
 } AstExpr;
 

@@ -26,6 +26,7 @@ typedef enum TokenKind {
     ELSE,
     WHILE,
     FOR,
+    RETURN,
 
     ASSIGN,
     SEMICOLON,
