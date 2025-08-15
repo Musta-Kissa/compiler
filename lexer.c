@@ -53,12 +53,15 @@ const char* format_enum(Token k) {
 
         case PLUS_PLUS:             return "PLUS_PLUS";
         case MINUS_MINUS:           return "MINUS_MINUS";
+
+        case FN:                    return "FN";
+        case ARROW:                 return "ARROW";
     }
 }
 
 int get_keyword(char* buff,Token* t) {
-    const char*     keywords[]      = {"int","float","void","if","else","for","while","return","EOF"};
-    const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE , RETURN , EOF_TOKEN};
+    const char*     keywords[]      = {"int","float","void","if","else","for","while","return","fn","EOF"};
+    const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
     const int len = sizeof(keywords) / sizeof(keywords[0]);
 
     for ( int i = 0; i < len; i++) {
@@ -134,11 +137,17 @@ Lexer lex_file(String string) {
                     tokens[tokens_idx++] = (Token){ .kind=PLUS };  
                 } continue;
             case '-': 
-                if( String_getc(&string) == '-') {
-                    tokens[tokens_idx++] = (Token){ .kind=MINUS_MINUS };
-                } else {
-                    String_ungetc(&string);
-                    tokens[tokens_idx++] = (Token){ .kind=MINUS };       
+                switch(String_getc(&string)) {
+                    case '-':
+                        tokens[tokens_idx++] = (Token){ .kind=MINUS_MINUS };
+                        break;
+                    case '>':
+                        tokens[tokens_idx++] = (Token){ .kind=ARROW };
+                        break;
+                    default:
+                        String_ungetc(&string);
+                        tokens[tokens_idx++] = (Token){ .kind=MINUS };       
+                        break;
                 } continue;
             case '<':
                 if( String_getc(&string) == '=') {

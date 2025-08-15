@@ -123,7 +123,7 @@ AstExpr* parse_func_decl(Lexer* lexer,Token type,Token ident);
 AstExpr* parse_program(Lexer* lexer);
 AstExpr* parse_arg_decl(Lexer* lexer);
 AstExpr* parse_args(Lexer* lexer);
-AstExpr* parse_statement(Lexer* lexer);
+AstExpr* parse_statements(Lexer* lexer);
 AstExpr* parse_function_call(Lexer* lexer,Token ident);
 AstExpr* parse_unary(Lexer* lexer, Token opp);
 

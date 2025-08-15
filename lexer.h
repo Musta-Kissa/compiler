@@ -28,6 +28,9 @@ typedef enum TokenKind {
     FOR,
     RETURN,
 
+    FN,
+    ARROW,
+
     ASSIGN,
     SEMICOLON,
     COMMA,

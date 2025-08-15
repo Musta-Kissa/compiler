@@ -1,19 +1,39 @@
 int func(int a,int b,int c) {
+    if ( !a ) {
+        int banana;
+    }
+    for(int a; a;beck) {
+        int hello;
+    }
+    {
+        int hello;
+    }
 
 }
+int c = a+b;
 while(v) {
     int a;
     float b;
     int c = a+b;
     if ( c) {
+    int c = a+b;
             while (a ){
+    int c = a+b;
                 while (a ){
+    int c = a+b;
 
                 }
+    int c = a+b;
             }
+    int c = a+b;
             if ( c) {
+    int c = a+b;
             }
+    int c = a+b;
             if ( c) {
+    int c = a+b;
             }
+    int c = a+b;
     }
+    int c = a+b;
 }
