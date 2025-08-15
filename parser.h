@@ -119,7 +119,7 @@ int is_unary(Token k);
 
 AstExpr* parse_expr(Lexer* lexer, int curr_bp);
 AstExpr* parse_decl(Lexer* lexer,Token type, Token ident);
-AstExpr* parse_func_decl(Lexer* lexer,Token type,Token ident);
+AstExpr* parse_func_decl(Lexer* lexer);
 AstExpr* parse_program(Lexer* lexer);
 AstExpr* parse_arg_decl(Lexer* lexer);
 AstExpr* parse_args(Lexer* lexer);
