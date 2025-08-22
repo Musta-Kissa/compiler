@@ -1,49 +1,30 @@
-fn func(int a,int b,int c) -> int {
-    if ( !a ) {
-        int banana;
-    return a+b;
+int a;
+int z;
+fn foo(int a,int b,int c) -> int {
+    int g;
+    int i;
+    for(i = 1; i < a; ++i) {
+        i + a;
     }
-    for(int a; a;beck) {
-        int hello;
-    return a+b;
+    while( a > b) {
+        int x;
+        x > z;
     }
-    return a+b;
+    if( a > g) {
+        int c;
+        if( z > c) {
+        }
+    }
+    i + b;
+    if ( a > b ) {
+        return a + i;
+    }
     {
-        int hello;
-    return a+b;
-    }
-    return a+b;
-    fn add(int x, int y) -> int {
-        return x+y;
+        int a;
+        int b;
     }
 }
 fn void_func() {
 
 }
-int c = a+b;
-while(v) {
-    int a;
-    float b;
-    int c = a+b;
-    if ( c) {
-    int c = a+b;
-            while (a ){
-    int c = a+b;
-                while (a ){
-    int c = a+b;
 
-                }
-    int c = a+b;
-            }
-    int c = a+b;
-            if ( c) {
-    int c = a+b;
-            }
-    int c = a+b;
-            if ( c) {
-    int c = a+b;
-            }
-    int c = a+b;
-    }
-    int c = a+b;
-}

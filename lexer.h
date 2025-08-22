@@ -55,10 +55,7 @@ typedef enum TokenKind {
 
 typedef struct Token {
     TokenKind kind;
-    union {
-        int number;
-        char* string;
-    } value;
+    char* value;
 } Token;
 
 typedef struct Lexer {

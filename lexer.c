@@ -194,8 +194,8 @@ Lexer lex_file(String string) {
 
             tmp[tmp_idx++] = '\0'; tmp_idx = 0;
 
-            Token t = (Token){ .kind=NUMBER, .value.string = (char*)malloc(sizeof(char)*100) };
-            strncpy(t.value.string,tmp,100);
+            Token t = (Token){ .kind=NUMBER, .value = (char*)malloc(sizeof(char)*100) };
+            strncpy(t.value,tmp,100);
             tokens[tokens_idx++] = t;
 
         } else if( c == '\"') {
@@ -207,8 +207,8 @@ Lexer lex_file(String string) {
 
             tmp[tmp_idx++] = '\0'; tmp_idx = 0;
 
-            Token t = (Token){ .kind=STRING, .value.string = (char*)malloc(sizeof(char)*100) };
-            strncpy(t.value.string,tmp,100);
+            Token t = (Token){ .kind=STRING, .value = (char*)malloc(sizeof(char)*100) };
+            strncpy(t.value,tmp,100);
             tokens[tokens_idx++] = t;
         } else {
             while(1) {
@@ -227,8 +227,8 @@ Lexer lex_file(String string) {
             if( get_keyword(tmp,&t) != -1 ) {
                 tokens[tokens_idx++] = t;
             } else {
-                t = (Token){ .kind=IDENT, .value.string = (char*)malloc(sizeof(char)*100) };
-                strncpy(t.value.string,tmp,100);
+                t = (Token){ .kind=IDENT, .value = (char*)malloc(sizeof(char)*100) };
+                strncpy(t.value,tmp,100);
                 tokens[tokens_idx++] = t;
             }
 

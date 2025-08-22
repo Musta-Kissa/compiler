@@ -3,14 +3,6 @@
 
 #include "lexer.h"
 
-/*
-typedef struct Expr {
-    Token opp;
-    struct Expr* lhs;
-    struct Expr* rhs;
-}Expr;
-*/
-
 typedef enum {
     AST_BINARY_OPERATION,   
     AST_UNARY_OPERATION,    
@@ -20,7 +12,6 @@ typedef enum {
     AST_NUMBER,            
     AST_STRING,             
     AST_IDENTIFIER,       
-    AST_ASSIGNMENT,      
     AST_DECLARATION,    
     AST_FUNCTION_DECLARATION,
     AST_COMPOUND_STATEMENT, 
@@ -72,10 +63,6 @@ typedef struct AstExpr {
             struct AstExpr* value; // AST_EXPRESSION_STATEMENT // CAN BE NULL
             struct AstExpr* next; // CAN BE NULL
         } declaration;
-        struct Assignment {
-            Token ident;      
-            struct AstExpr* value;      
-        } assignment;             
         struct FunctionDeclaration {
             Token return_type;   
             Token name;          
@@ -86,7 +73,7 @@ typedef struct AstExpr {
         struct IfStatement {
             struct AstExpr* condition;
             struct AstExpr* body; // BlockStatment
-            struct AstExpr* else_block;
+            struct AstExpr* else_block; // NOT IMPLEMENTED
             struct AstExpr* next;
         } if_statement;
         struct ForStatement {
@@ -109,6 +96,10 @@ typedef struct AstExpr {
             struct AstExpr* statements; // Can be NULL
             struct AstExpr* next; // Can be NULL
         } block_statement;
+        struct ExpressionStatement {
+            struct AstExpr* value; // Can be NULL
+            struct AstExpr* next; // Can be NULL
+        } expression_statement;
     };
 } AstExpr;
 
@@ -118,12 +109,13 @@ int is_type(Token k);
 int is_unary(Token k);
 
 AstExpr* parse_expr(Lexer* lexer, int curr_bp);
-AstExpr* parse_decl(Lexer* lexer,Token type, Token ident);
+AstExpr* parse_decl(Lexer* lexer);
 AstExpr* parse_func_decl(Lexer* lexer);
 AstExpr* parse_program(Lexer* lexer);
 AstExpr* parse_arg_decl(Lexer* lexer);
 AstExpr* parse_args(Lexer* lexer);
 AstExpr* parse_statements(Lexer* lexer);
+AstExpr* parse_statement(Lexer* lexer);
 AstExpr* parse_function_call(Lexer* lexer,Token ident);
 AstExpr* parse_unary(Lexer* lexer, Token opp);
 

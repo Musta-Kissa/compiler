@@ -44,13 +44,13 @@ void print_expr(AstExpr* expr) {
     }
     switch(expr->type) {
         case AST_NUMBER:
-            printf("%s",expr->number.token.value.string);
+            printf("%s",expr->number.token.value);
             return;
         case AST_IDENTIFIER:
-            printf("%s",expr->identifier.token.value.string);
+            printf("%s",expr->identifier.token.value);
             return;
         case AST_STRING:
-            printf("\"%s\"",expr->identifier.token.value.string);
+            printf("\"%s\"",expr->identifier.token.value);
             return;
     }
     if( expr->type == AST_UNARY_OPERATION ) {
@@ -96,8 +96,8 @@ void print_expr(AstExpr* expr) {
                 printf(">="); break;
             case LESS_EQUAL:
                 printf("<="); break;
-            case NOT:
-                printf("!"); break;
+            case ASSIGN:
+                printf("="); break;
             default: 
                 PANIC("Oparation printing not supported");
         }
@@ -108,7 +108,7 @@ void print_expr(AstExpr* expr) {
         printf(")");
     } 
     if( expr->type == AST_FUNC_CALL ) {
-        printf("<Fn %s>{",expr->func_call.identifier.value.string);
+        printf("<Fn %s>{",expr->func_call.identifier.value);
         if( expr->func_call.args != NULL ){
             print_args(expr->func_call.args);
         }
@@ -119,14 +119,14 @@ void print_expr(AstExpr* expr) {
 void print_arg_decl(AstExpr* arg) {
     AstExpr* next = arg;
     while( next != NULL ) {
-        printf("\targ: type= {%s} name= {%s}\n",format_enum(next->argument_decl.type),next->argument_decl.ident.value.string);
+        printf("\targ: type= {%s} name= {%s}\n",format_enum(next->argument_decl.type),next->argument_decl.ident.value);
         next = next->argument_decl.next;
     }
 }
 
 void print_func_decl(AstExpr* node) {
     printf("func: name= {%s} return_type= {%s}\n",
-            node->function_declaration.name.value.string,
+            node->function_declaration.name.value,
             format_enum(node->function_declaration.return_type));
     print_arg_decl(node->function_declaration.args);
     // print body
@@ -136,7 +136,7 @@ void print_func_decl(AstExpr* node) {
 
 void print_decl(AstExpr* node) {
     printf("decl: name= {%s} type= {%s} value= ",
-            node->declaration.name.value.string,
+            node->declaration.name.value,
             format_enum(node->declaration.type));
     print_expr(node->declaration.value);
     printf("\n");
@@ -151,11 +151,11 @@ void print_if(AstExpr* node) {
 }
 void print_for(AstExpr* node) {
     printf("for:\n\tinit = ");
-    print_decl(node->for_statement.initial);
+    print_statements(node->for_statement.initial);
     printf("\tcondition = ");
-    print_expr(node->for_statement.condition);
+    print_statements(node->for_statement.condition);
     printf("\n\titeration = ");
-    print_expr(node->for_statement.iteration);
+    print_statements(node->for_statement.iteration);
     printf("\n\tbody = \n");
     print_statements(node->for_statement.body);
 }
@@ -207,6 +207,11 @@ void print_statements(AstExpr* stm) {
             case AST_BLOCK_STATEMENT:
                 print_block(next); 
                 next = next->block_statement.next;
+                break;
+            case AST_EXPRESSION_STATEMENT:
+                print_expr(next->expression_statement.value); 
+                printf("\n");
+                next = next->expression_statement.next;
                 break;
             default:
                 PANIC("NOT SUPPORTED");

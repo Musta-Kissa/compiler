@@ -5,6 +5,7 @@
 #include "lexer.h"
 #include "my_string.h"
 #include "parser.h"
+#include "analyzer.h"
 
 #define PANIC(fmt, ...) { \
     printf(fmt "\n", ##__VA_ARGS__); \
@@ -18,9 +19,11 @@ int main(int argc, char* argv[]) {
 
     String source = String_readfile(f);
     printf("source: \n%s",source.data);
+    printf("============= end source ===============\n\n");
 
     Lexer lexer = lex_file(source);
 
+    /*
     for( int n = 0; lexer.tokens[n-1].kind != EOF_TOKEN ; n++) {
         Token t = lexer.tokens[n];
         printf("%d: %s ",n,format_enum(t));
@@ -28,24 +31,14 @@ int main(int argc, char* argv[]) {
             case IDENT: 
             case NUMBER:
             case STRING:
-                printf("val: %s",t.value.string);
+                printf("val: %s",t.value);
         }
         printf("\n");
     }
-
-
+    */
     AstExpr* program = parse_program(&lexer);
-
     print_program_ast(program);
 
-    /*
-    // PARSE EXPRs
-    while( Lexer_peek(&lexer).kind != EOF_TOKEN) {
-        AstExpr* expr = parse_expr(&lexer,0);
-        printf("=========================\n");
-            print_expr(expr);
-        printf("\n");
-        Lexer_next(&lexer);
-    }
-    */
+    analyze_program_ast(program);
+
 }
