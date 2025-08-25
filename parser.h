@@ -37,14 +37,14 @@ typedef struct AstExpr {
         } unary_operation; // TODO implement unary in parser
         struct FuncCall {
             Token identifier;
-            struct AstExpr* args;
+            struct AstExpr* args; // argument*
         } func_call;   
-        struct Arg {
-            struct AstExpr* value;
+        struct FuncArg {
+            struct AstExpr* value; // expression_statement*
             struct AstExpr* next; // CAN BE NULL
         } argument;
         struct ArgDecl {
-            Token type;
+            char* type_name;
             Token ident;
             struct AstExpr* next; // CAN BE NULL
         } argument_decl;
@@ -58,14 +58,14 @@ typedef struct AstExpr {
             Token token;
         } identifier;
         struct Declaretion {
-            Token type;          
-            Token name;         
+            char* type_name;          
+            char* name;         
             struct AstExpr* value; // AST_EXPRESSION_STATEMENT // CAN BE NULL
             struct AstExpr* next; // CAN BE NULL
         } declaration;
         struct FunctionDeclaration {
-            Token return_type;   
-            Token name;          
+            char* return_type_name;   
+            char* name;          
             struct AstExpr* args;      
             struct AstExpr* body; // BlockStatment
             struct AstExpr* next; // CAN BE NULL
@@ -97,6 +97,7 @@ typedef struct AstExpr {
             struct AstExpr* next; // Can be NULL
         } block_statement;
         struct ExpressionStatement {
+            //char* type_name;
             struct AstExpr* value; // Can be NULL
             struct AstExpr* next; // Can be NULL
         } expression_statement;
@@ -105,9 +106,9 @@ typedef struct AstExpr {
 
 int get_binding_power(Token opp);
 int is_opp(Token k);
-int is_type(Token k);
 int is_unary(Token k);
 
+AstExpr* parse_expr_statement(Lexer* lexer);
 AstExpr* parse_expr(Lexer* lexer, int curr_bp);
 AstExpr* parse_decl(Lexer* lexer);
 AstExpr* parse_func_decl(Lexer* lexer);

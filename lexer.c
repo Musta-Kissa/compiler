@@ -14,6 +14,8 @@
 
 const char* format_enum(Token k) {
     switch(k.kind) {
+        //case UNKNOWN_TYPE:          return "UNKNOWN_TYPE";
+        //case TYPE:                  return "TYPE";
         case IDENT:                 return "IDENT";
         case NUMBER:                return "NUMBER";
 
@@ -29,6 +31,7 @@ const char* format_enum(Token k) {
         case EOF_TOKEN:             return "EOF_TOKEN";
         case ASSIGN:                return "ASSIGN";
         case SEMICOLON:             return "SEMICOLON";
+        case COLON:                 return "COLON";
         case COMMA:                 return "COMMA";
         case DOT:                   return "DOT";
         case PLUS:                  return "PLUS";
@@ -56,12 +59,15 @@ const char* format_enum(Token k) {
 
         case FN:                    return "FN";
         case ARROW:                 return "ARROW";
+        default:                    PANIC("UNHANDLED TOKEN TYPE");
     }
 }
 
 int get_keyword(char* buff,Token* t) {
-    const char*     keywords[]      = {"int","float","void","if","else","for","while","return","fn","EOF"};
-    const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
+    //const char*     keywords[]      = {"int","float","void","if","else","for","while","return","fn","EOF"};
+    //const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
+    const char*     keywords[]      = {"if","else","for","while","return","fn","EOF"};
+    const TokenKind keyword_kinds[] = { IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
     const int len = sizeof(keywords) / sizeof(keywords[0]);
 
     for ( int i = 0; i < len; i++) {
@@ -74,7 +80,7 @@ int get_keyword(char* buff,Token* t) {
 }
 
 int is_terminal(char c) {
-    const char terminals[] = {'!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '-', '*', '/', '<', '>', ';', ' ', '\n','\"'};
+    const char terminals[] = {':','!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '-', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
 
     for ( int i = 0; i < len; i++) {
@@ -96,16 +102,22 @@ Token Lexer_next(Lexer* lexer) {
     Token next = lexer->tokens[++lexer->idx];
     return next;
 }
+/// peeks n tokens forward / backward 
+/// n == 0 gives curr token
+Token Lexer_peek_n(Lexer* lexer, int n) {
+    return lexer->tokens[lexer->idx+n];
+}
+
 Token Lexer_curr(Lexer* lexer) {
-    return lexer->tokens[lexer->idx];
+    return Lexer_peek_n(lexer,0);
 }
 
 Token Lexer_peek(Lexer* lexer) {
-    return lexer->tokens[lexer->idx+1];
+    return Lexer_peek_n(lexer,1);
 }
 
 Token Lexer_peek_back(Lexer* lexer) {
-    return lexer->tokens[lexer->idx-1];
+    return Lexer_peek_n(lexer,-1);
 }
 
 Lexer lex_file(String string) {
@@ -118,6 +130,7 @@ Lexer lex_file(String string) {
     while((c = String_getc(&string)) != EOF ) {
         ASSERT((tokens_idx < 1000),"%s %d: EXEEDED MAX TOKENS",__FILE__,__LINE__);
         switch(c) {
+            case ':': tokens[tokens_idx++] = (Token){ .kind=COLON };                continue;
             case '(': tokens[tokens_idx++] = (Token){ .kind=OPEN_PARENT };          continue;
             case ')': tokens[tokens_idx++] = (Token){ .kind=CLOSE_PARENT };         continue;
             case '{': tokens[tokens_idx++] = (Token){ .kind=OPEN_CURRLY_PARENT };   continue;
@@ -231,21 +244,6 @@ Lexer lex_file(String string) {
                 strncpy(t.value,tmp,100);
                 tokens[tokens_idx++] = t;
             }
-
-            /*
-            if( strcmp(tmp,"int") == 0 ) {
-                tokens[tokens_idx++] = (Token){ .kind=INT };
-            } 
-            else if( strcmp(tmp,"float") == 0 ) {
-                tokens[tokens_idx++] = (Token){ .kind=FLOAT };
-            } 
-
-            else {
-                Token t = (Token){ .kind=IDENT, .value.string = (char*)malloc(sizeof(char)*100) };
-                strncpy(t.value.string,tmp,100);
-                tokens[tokens_idx++] = t;
-            }
-            */
         }
     }
     tokens[tokens_idx++] = (Token){ .kind = EOF_TOKEN };

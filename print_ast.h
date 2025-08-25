@@ -119,33 +119,34 @@ void print_expr(AstExpr* expr) {
 void print_arg_decl(AstExpr* arg) {
     AstExpr* next = arg;
     while( next != NULL ) {
-        printf("\targ: type= {%s} name= {%s}\n",format_enum(next->argument_decl.type),next->argument_decl.ident.value);
+        printf("\targ: type= {%s} name= {%s}\n",next->argument_decl.type_name,next->argument_decl.ident.value);
         next = next->argument_decl.next;
     }
 }
 
 void print_func_decl(AstExpr* node) {
     printf("func: name= {%s} return_type= {%s}\n",
-            node->function_declaration.name.value,
-            format_enum(node->function_declaration.return_type));
+            node->function_declaration.name,
+            node->function_declaration.return_type_name);
     print_arg_decl(node->function_declaration.args);
     // print body
+    printf(" body= ");
     print_statements(node->function_declaration.body);
     printf("\n");
 }
 
 void print_decl(AstExpr* node) {
     printf("decl: name= {%s} type= {%s} value= ",
-            node->declaration.name.value,
-            format_enum(node->declaration.type));
-    print_expr(node->declaration.value);
+            node->declaration.name,
+            node->declaration.type_name);
+    print_statements(node->declaration.value);
     printf("\n");
 }
 
 void print_if(AstExpr* node) {
     printf("if: condition= ");
-    print_expr(node->if_statement.condition);
-    printf(" body= \n");
+    print_statements(node->if_statement.condition);
+    printf(" body= ");
     print_statements(node->if_statement.body);
     printf("\n");
 }
@@ -156,18 +157,18 @@ void print_for(AstExpr* node) {
     print_statements(node->for_statement.condition);
     printf("\n\titeration = ");
     print_statements(node->for_statement.iteration);
-    printf("\n\tbody = \n");
+    printf("\n\tbody = ");
     print_statements(node->for_statement.body);
 }
 void print_while(AstExpr* node) {
     printf("\n\twhile: condition = ");
-    print_expr(node->while_statement.condition);
-    printf("\n\tbody = \n");
+    print_statements(node->while_statement.condition);
+    printf("\n\tbody = ");
     print_statements(node->while_statement.body);
 }
 void print_return(AstExpr* node) {
-    printf("\n\treturn STM: expr = ");
-    print_expr(node->return_statement.expression);
+    printf("\n\treturn: expr = ");
+    print_statements(node->return_statement.expression);
     printf("\n");
 }
 void print_block(AstExpr* node) {

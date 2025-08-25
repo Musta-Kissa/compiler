@@ -33,6 +33,7 @@ typedef enum TokenKind {
 
     ASSIGN,
     SEMICOLON,
+    COLON,
     COMMA,
     PLUS,
     MULTIPLICATION,
@@ -64,6 +65,7 @@ typedef struct Lexer {
 } Lexer;
 
 
+Token Lexer_peek_n(Lexer* lexer, int n);
 Token Lexer_next(Lexer* lexer);
 Token Lexer_peek(Lexer* lexer);
 Token Lexer_curr(Lexer* lexer);
