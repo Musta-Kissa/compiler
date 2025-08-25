@@ -272,7 +272,8 @@ AstExpr* parse_decl(Lexer* lexer) {
         node->declaration.type_name  = NULL;
         Lexer_next(lexer); // Consume Assign
         node->declaration.value = parse_expr_statement(lexer);
-    } else { // type given
+    } else 
+    if( Lexer_peek(lexer).kind == IDENT) { // type given
         node->declaration.type_name  = Lexer_next(lexer).value;
         if( Lexer_peek(lexer).kind == ASSIGN ) { // Value given
             Lexer_next(lexer); // Consume Assign
@@ -283,6 +284,8 @@ AstExpr* parse_decl(Lexer* lexer) {
         } else {
             PANIC("%s %d: Expected ASSIGN or SEMICOLON after TYPE in declaration, got %s",__FILE__,__LINE__,format_enum(Lexer_peek(lexer)));
         }
+    } else {
+        PANIC("%s %d: Expected TYPE in declaration after COLON, got %s",__FILE__,__LINE__,format_enum(Lexer_peek(lexer)));
     }
     ASSERT( (Lexer_curr(lexer).kind == SEMICOLON), "%s %d: Expected SEMICOLON, got %s, lexer idx:%d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     return node;
@@ -427,6 +430,15 @@ AstExpr* parse_expr_statement(Lexer* lexer) {
     ASSERT( (next.kind == SEMICOLON || next.kind == CLOSE_PARENT || next.kind == COMMA ), "%s %d: Expected SEMICOLON, CLOSE_PARENT or COMMA after expr statement , got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
     return node;
 }
+AstExpr* parse_struct_decl(Lexer* lexer) {
+    Lexer_next(lexer); // Consume STRUCT
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+        node->type = AST_STRUCT_DECLARATION;
+        node->struct_declaration.name = Lexer_next(lexer).value;
+    ASSERT( (Lexer_curr(lexer).kind == IDENT), "%s %d: Expected IDENT after STRUCT keyword",__FILE__,__LINE__);
+        node->struct_declaration.body = parse_block_statement(lexer);
+    return node;
+}
 
 AstExpr* parse_statement(Lexer* lexer) {
     Token next = Lexer_peek(lexer);
@@ -465,6 +477,10 @@ AstExpr* parse_statement(Lexer* lexer) {
             node = parse_func_decl(lexer);
             node->function_declaration.next = NULL;
             return node;
+        case STRUCT:
+            node = parse_struct_decl(lexer);
+            node->struct_declaration.next = NULL; 
+            return node;
     }
     // expected identifier than if ':' its a declaration if not an expression;
     ASSERT( (next.kind == IDENT || next.kind == OPEN_PARENT || is_unary(next)) ,"expected KEYWORD,UNARY_OPP,OPEN_CURRLY_PARENT, OPEN_PARENT or IDENT got %s, idx: %d",format_enum(next),lexer->idx);
@@ -478,18 +494,6 @@ AstExpr* parse_statement(Lexer* lexer) {
         node->expression_statement.next = NULL;
         return node;
     }
-
-    /*
-    if( is_type(next) ) { // DECLARATION
-        node = parse_decl(lexer);
-        node->declaration.next = NULL;
-        return node;
-    } else { // EXPR
-        node = parse_expr_statement(lexer);
-        node->expression_statement.next = NULL;
-        return node;
-    }
-    */
 }
 
 // expects Lexer_next() == OPEN_CURRLY_PARENT | {KEYWORD} | {DECL}
@@ -526,6 +530,10 @@ AstExpr* parse_statements(Lexer* lexer) {
         case FN:
             node = parse_func_decl(lexer);
             node->function_declaration.next = parse_statements(lexer);
+            return node;
+        case STRUCT:
+            node = parse_struct_decl(lexer);
+            node->struct_declaration.next = parse_statements(lexer);
             return node;
     }
     // expected identifier than if ':' its a declaration if not an expression;

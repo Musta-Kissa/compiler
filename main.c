@@ -34,6 +34,7 @@ int main(int argc, char* argv[]) {
         }
         printf("\n");
     }
+
     AstExpr* program = parse_program(&lexer);
     print_program_ast(program);
 

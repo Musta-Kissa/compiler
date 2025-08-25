@@ -54,6 +54,10 @@ const char* format_enum(Token k) {
         case FOR:                   return "FOR";
         case RETURN:                return "RETURN";
 
+        case STRUCT:                return "STRUCT";
+        case ENUM:                  return "ENUM";
+        case UNION:                 return "UNION";
+
         case PLUS_PLUS:             return "PLUS_PLUS";
         case MINUS_MINUS:           return "MINUS_MINUS";
 
@@ -64,10 +68,8 @@ const char* format_enum(Token k) {
 }
 
 int get_keyword(char* buff,Token* t) {
-    //const char*     keywords[]      = {"int","float","void","if","else","for","while","return","fn","EOF"};
-    //const TokenKind keyword_kinds[] = { INT , FLOAT , VOID , IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
-    const char*     keywords[]      = {"if","else","for","while","return","fn","EOF"};
-    const TokenKind keyword_kinds[] = { IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
+    const char*     keywords[]      = {"union","enum","struct","if","else","for","while","return","fn","EOF"};
+    const TokenKind keyword_kinds[] = { UNION , ENUM , STRUCT , IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
     const int len = sizeof(keywords) / sizeof(keywords[0]);
 
     for ( int i = 0; i < len; i++) {

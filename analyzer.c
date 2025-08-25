@@ -17,23 +17,62 @@
     exit(-1); \
 }
 
+const Type PRIMITIVE_TYPES[] = {
+    {PRIMITIVE_TYPE,"bool"},
+    {PRIMITIVE_TYPE,"float"},
+    {PRIMITIVE_TYPE,"int"},
+    {PRIMITIVE_TYPE,"void"},
+};
+
+Analyzer anlz;
+void Analyzer_init() {
+    Analyzer analyzer;
+        analyzer.declared_vars = Stack_new();
+        analyzer.types_idx = sizeof(PRIMITIVE_TYPES) / sizeof(PRIMITIVE_TYPES[0]);
+    for (size_t i = 0; i < analyzer.types_idx; i++) {
+        analyzer.types[i] = PRIMITIVE_TYPES[i];
+    }
+    anlz = analyzer;
+}
+
 
 Type Type_new(char* type_name, TypeKind type_kind) {
     return (Type){ .type_name=type_name,.type_kind=type_kind };
 }
+Type Type_get_field_type(Type type,char* field_name) {
+    ASSERT( (type.type_kind == STRUCT_TYPE), "Expected STRUCT_TYPE");
 
-Analyzer anlz;
-Type Analyzer_get_type(char* type_name) {
+    FieldListNode* curr = type.struct_type.fields;
+    while( curr != NULL ) {
+        if( strcmp(curr->name,field_name) == 0 ) {
+            return curr->type;
+        }
+        curr = curr->next;
+    }
+    PANIC("Field not found '%s' in struct {%s}",field_name,type.type_name);
+}
+void Analyzer_append_type(Type type) {
+    if( anlz.types_idx < 1000 ) {
+        anlz.types[anlz.types_idx++] = type;
+    } else {
+        PANIC("Max number of types exceeded");
+    }
+}
+
+int get_type_err;
+Type Analyzer_get_type(char* type_name,int* err) {
     for( int i = 0 ; i < anlz.types_idx ; i++ ) {
         char* curr = anlz.types[i].type_name;
         if( strcmp(type_name,curr) == 0 ) {
+            *err = 0;
             return anlz.types[i];
         }
     }
-    PANIC("%s %d: Type not found in Analyzer_get_type(): %s",__FILE__,__LINE__,type_name);
+    *err = -1;
+    //PANIC("%s %d: Type not found in Analyzer_get_type(): %s",__FILE__,__LINE__,type_name);
 }
 
-int type_is(const char* type, ...) {
+int type_is_impl(const char* type, ...) {
     va_list args;
     va_start(args,type);
 
@@ -47,7 +86,6 @@ int type_is(const char* type, ...) {
     va_end(args);
     return 0;
 }
-#define type_is(...) type_is(__VA_ARGS__,0)
 
 const char* format_ast_type(AstExpr* stm) {
     switch( stm->type ) {
@@ -60,6 +98,7 @@ const char* format_ast_type(AstExpr* stm) {
         case AST_RETURN_STATEMENT:      return "AST_RETURN_STATEMENT";
         case AST_EXPRESSION_STATEMENT:  return "AST_EXPRESSION_STATEMENT";
         case AST_BINARY_OPERATION:      return "AST_BINARY_OPERATION";
+        case AST_STRUCT_DECLARATION:    return "AST_STRUCT_DECLARATION";
         default:
             PANIC("UNKNOWKN AST NODE TYPE");
         }
@@ -78,22 +117,6 @@ Stack Stack_new() {
         stk.frames[0] = 0;
         stk.frames_idx = 1;
     return stk;
-}
-
-const Type primitive_types[] = {
-    {PRIMITIVE_TYPE,"bool"},
-    {PRIMITIVE_TYPE,"float"},
-    {PRIMITIVE_TYPE,"int"},
-    {PRIMITIVE_TYPE,"void"},
-};
-void Analyzer_init() {
-    Analyzer analyzer;
-        analyzer.declared_vars = Stack_new();
-        analyzer.types_idx = sizeof(primitive_types) / sizeof(primitive_types[0]);
-    for (size_t i = 0; i < analyzer.types_idx; i++) {
-        analyzer.types[i] = primitive_types[i];
-    }
-    anlz = analyzer;
 }
 
 void Stack_new_frame(Stack* stk) {
@@ -154,14 +177,40 @@ void analyze_func_decl(AstExpr* stm) {
     if( Stack_find(&anlz.declared_vars,var.ident) ) {
         PANIC("Redefinition of ident \"%s\" as a function",ident);
     }
+    
+    if( stm->function_declaration.args == NULL ) {
+        var.type.function_type.arg_types = NULL;
+    } else {
+        TypeListNode* curr = (TypeListNode*)malloc(sizeof(TypeListNode));
+        var.type.function_type.arg_types = curr; 
+     
+        AstExpr* arg = stm->function_declaration.args;
+        while(1) { // Adding function args to the function scope
+
+            char* type_name  = arg->argument_decl.type_name;
+            char* ident = arg->argument_decl.ident.value;
+            Type  type = Analyzer_get_type(type_name,&get_type_err);
+            arg = arg->argument_decl.next;
+            
+            if(arg == NULL) {
+                *curr = (TypeListNode){.type = type, .next = NULL };
+                break;
+            } else {
+                *curr = (TypeListNode){.type = type, .next = (TypeListNode*)malloc(sizeof(TypeListNode)) };
+            }
+            curr = curr->next;
+        }
+    }
+
     Stack_append(&anlz.declared_vars,var);
     Stack_new_frame(&anlz.declared_vars);
 
     AstExpr* arg = stm->function_declaration.args;
     while( arg != NULL ) { // Adding function args to the function scope
+
         char* type_name  = arg->argument_decl.type_name;
         char* ident = arg->argument_decl.ident.value;
-        Type  type = Analyzer_get_type(type_name);
+        Type  type = Analyzer_get_type(type_name,&get_type_err);
         Variable var = Variable_new(type,ident);
         Stack_append(&anlz.declared_vars,var);
         arg = arg->argument_decl.next;
@@ -193,12 +242,12 @@ void analyze_decl(AstExpr* stm) {
             type_name = expr_type.type_name;
         } else {
             if( !type_is(type_name, expr_type.type_name) ) {
-                PANIC("Type specified in the declaration of var '%s' {%s} doesnt match the type of the expr provided: {%s}",ident,type_name,expr_type);
+                PANIC("Type specified in the declaration of var '%s' {%s} doesnt match the type of the expr provided: {%s}",ident,type_name,expr_type.type_name);
             }
         }
     }
 
-    Type type = Analyzer_get_type(type_name);
+    Type type = Analyzer_get_type(type_name,&get_type_err);
     Variable var = Variable_new(type,ident);
 
     if( Stack_find_curr_frame(&anlz.declared_vars,var.ident) ) {
@@ -224,9 +273,29 @@ Type analyze_func_call(AstExpr* stm) {
             PANIC("Tried to call variable '%s' of type {%s} as a function",var.ident,var.type.type_name);
         }
     }
-    analyze_func_call_args(stm->func_call.args);
+    int arg_counter = 1;
+    AstExpr* curr_arg = stm->func_call.args;
+    TypeListNode* curr_arg_decl = var.type.function_type.arg_types;
+    while(1) {
+        if( curr_arg == NULL ) {
+            break;
+        }
+        Type arg_type      = analyze_expr_statement(curr_arg->argument.value);
+        if( curr_arg_decl == NULL ) {
+            PANIC("In call to function '%s' expected %d argument/s got additianal argument of type {%s}",var.ident,arg_counter,arg_type.type_name);
+        }
+        Type arg_decl_type = curr_arg_decl->type;
+
+        if( !type_is(arg_type.type_name, arg_decl_type.type_name) ) {
+            PANIC("In call to function '%s' expected {%s} but got argument of type {%s}",var.ident,arg_decl_type.type_name,arg_type.type_name);
+        }
+
+        curr_arg_decl = curr_arg_decl->next;
+        curr_arg = curr_arg->argument.next;
+    }
     return var.type;
 }
+/*
 void analyze_func_call_args(AstExpr* stm) {
     if( stm == NULL ) {
         return;
@@ -234,6 +303,7 @@ void analyze_func_call_args(AstExpr* stm) {
     Type type = analyze_expr_statement(stm->argument.value);
     analyze_func_call_args(stm->argument.next);
 }
+*/
 // returns the type of the analyzed expr
 Type analyze_expr_statement(AstExpr* stm) {
     Type type = analyze_expr_statement_inner(stm->expression_statement.value);
@@ -263,19 +333,19 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
         switch( stm->unary_operation.opp_token.kind ) {
             case NOT:
                 if( !type_is(type.type_name,"bool") ) {
-                    PANIC("attemted to NOT a type (%s) thats not a bool",type);
+                    PANIC("attemted to NOT a type (%s) thats not a bool",type.type_name);
                 } break;
             case MINUS:
                 if( !type_is(type.type_name,"int","float") ) {
-                    PANIC("attemted to NOT a type (%s) thats not a bool",type);
+                    PANIC("attemted to NOT a type (%s) thats not a bool",type.type_name);
                 } break;
             case PLUS_PLUS:
                 if( !type_is(type.type_name,"int","float") ) {
-                    PANIC("attemted to NOT a type (%s) thats not a bool",type);
+                    PANIC("attemted to NOT a type (%s) thats not a bool",type.type_name);
                 } break;
             case MINUS_MINUS:
                 if( !type_is(type.type_name,"int","float") ) {
-                    PANIC("attemted to NOT a type (%s) thats not a bool",type);
+                    PANIC("attemted to NOT a type (%s) thats not a bool",type.type_name);
                 } break;
             default: 
                 PANIC("panicked");
@@ -283,8 +353,8 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
         return type;
     } else
     if( stm->type == AST_BINARY_OPERATION ) {
-        Type left_type  = analyze_expr_statement_inner(stm->binary_operation.right);
-        Type right_type = analyze_expr_statement_inner(stm->binary_operation.left);
+        Type left_type  ;
+        Type right_type ;
         // TODO
         switch( stm->binary_operation.opp_token.kind ) {
             // same type return type
@@ -292,6 +362,8 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
             case PLUS:
             case DIVITION:
             case MINUS:
+                left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
+                right_type = analyze_expr_statement_inner(stm->binary_operation.right);
                 if( !type_is(left_type.type_name,right_type.type_name) ) {
                     PANIC("Tried to %s {%s} and {%s} witch are not the same type",format_enum(stm->binary_operation.opp_token),left_type.type_name,right_type.type_name);
                 }
@@ -304,6 +376,8 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
             case MORE_THEN:
             case LESS_EQUAL:
             case MORE_EQUAL:
+                left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
+                right_type = analyze_expr_statement_inner(stm->binary_operation.right);
                 if( !type_is(left_type.type_name,right_type.type_name) ) {
                     PANIC("Tried to %s {%s} and {%s} witch are not the same type",format_enum(stm->binary_operation.opp_token),left_type.type_name,right_type.type_name);
                 }
@@ -312,6 +386,8 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
             // same type and return VOID type
             // (a = a + b) ; type_of( (a = b) ) == VOID
             case ASSIGN:
+                left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
+                right_type = analyze_expr_statement_inner(stm->binary_operation.right);
                 if( !type_is(left_type.type_name,right_type.type_name) ) {
                     PANIC("Tried to %s %s and %s witch are not the same type",format_enum(stm->binary_operation.opp_token),left_type.type_name,right_type.type_name);
                 }
@@ -320,13 +396,26 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
 
             // check struct field is in the struct then return the field type
             // b.c ; type_of( b.c ) == type_of( field c )
+            // b.c[10] ; type_of( b.c ) == type_of( field c )
+            // right side is a name of a field,
+            // left side can be any type but a STRUCT_TYPE is the only valid type
             case DOT: 
+                left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
+                    ASSERT( (left_type.type_kind == STRUCT_TYPE), "Tried to use DOT operator on a non struct type: {%s}",left_type.type_name);
+                AstExpr* field_name_identifier = stm->binary_operation.right;
+                    ASSERT( (field_name_identifier->type == AST_IDENTIFIER), "Only an identifier can be a field name", "");
+                char* field_name = field_name_identifier->identifier.token.value;
+
+                Type field_type = Type_get_field_type(left_type,field_name);
+                return field_type;
                 PANIC("DOT operator analysis not implemented");
 
             // right side has to be an intiger
             case SUBSCRIPT_OPEN: 
+                left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
+                right_type = analyze_expr_statement_inner(stm->binary_operation.right);
                 if( !type_is(left_type.type_name,"int") ) {
-                    PANIC("Tried to %s %s and %s witch are not the same type",format_enum(stm->binary_operation.opp_token),left_type.type_name,right_type.type_name);
+                    PANIC("Tried to index with type %s witch is not an intiger",right_type.type_name);
                 }
                 PANIC("%s %d: Getting type from subscript not implemented",__FILE__,__LINE__);
             default:
@@ -363,6 +452,44 @@ void analyze_return(AstExpr* stm) {
         PANIC("'return' statement in global scope");
     }
     analyze_statements(stm->return_statement.expression);
+}
+void analyze_struct_decl(AstExpr* stm) {
+    char* struct_name = stm->struct_declaration.name;
+    Type t = Analyzer_get_type(struct_name,&get_type_err);
+    if( get_type_err == 0 ) { // Type found 
+        PANIC("Redefinition of type {%s} as a struct",t.type_name);
+    }
+    Type struct_type = Type_new(struct_name,STRUCT_TYPE);
+
+    AstExpr* curr_field = stm->struct_declaration.body->block_statement.statements;
+
+    if( curr_field == NULL ) {
+        struct_type.struct_type.fields = NULL; 
+    } else {
+        FieldListNode* curr_field_node = (FieldListNode*)malloc(sizeof(TypeListNode));
+        struct_type.struct_type.fields = curr_field_node; 
+        while(1) {
+            ASSERT( ( curr_field->type == AST_DECLARATION ),       "Only declarations allowed in struct declaration body");
+            ASSERT( ( curr_field->declaration.type_name != NULL ), "Type of the field must be specified in struct declaration");
+
+            Type curr_field_type = Analyzer_get_type(curr_field->declaration.type_name,&get_type_err);
+            char* curr_field_name = curr_field->declaration.name;
+
+            ASSERT( ( get_type_err == 0 /*type found*/ ), "Unknown type {%s}", curr_field->declaration.type_name);
+
+            curr_field = curr_field->declaration.next;
+
+            if(curr_field == NULL) {
+                *curr_field_node = (FieldListNode){ .type=curr_field_type, .name = curr_field_name, .next = NULL };
+                break;
+            } else {
+                *curr_field_node = (FieldListNode){ .type=curr_field_type, .name = curr_field_name, .next = (FieldListNode*)malloc(sizeof(TypeListNode)) };
+            }
+            curr_field_node = curr_field_node->next;
+        }
+    }
+
+    Analyzer_append_type(struct_type);
 }
 
 void analyze_statements(AstExpr* stm) {
@@ -401,6 +528,11 @@ void analyze_statements(AstExpr* stm) {
                 analyze_return(next); 
                 next = next->return_statement.next;
                 break;
+            case AST_STRUCT_DECLARATION:    
+                analyze_struct_decl(next);
+                next = next->struct_declaration.next;
+                break;
+
             default:
                 PANIC("NOT SUPPORTED: %s",format_ast_type(next));
         }

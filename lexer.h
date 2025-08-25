@@ -28,6 +28,10 @@ typedef enum TokenKind {
     FOR,
     RETURN,
 
+    STRUCT,
+    ENUM,
+    UNION,
+
     FN,
     ARROW,
 

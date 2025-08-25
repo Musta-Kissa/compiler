@@ -7,7 +7,8 @@
 
 #include "parser.h"
 
-typedef struct ArgType ArgType;
+typedef struct TypeListNode TypeListNode;
+typedef struct FieldListNode FieldListNode;
 
 typedef enum TypeKind {
     FUNCTION_TYPE,
@@ -23,14 +24,23 @@ typedef struct Type {
     const char* type_name;
     union {
         struct FunctionType {
-            ArgType* arg_types;
+            TypeListNode* arg_types;
         } function_type;
+        struct StructType{
+            FieldListNode* fields;
+        } struct_type;
     }
 } Type;
 
-struct ArgType {
+struct FieldListNode {
     Type type;
-    ArgType* next; // Can be NULL
+    char* name;
+    FieldListNode* next; // Can be NULL
+};
+
+struct TypeListNode {
+    Type type;
+    TypeListNode* next; // Can be NULL
 };
 
 Type Type_new(char* type_name, TypeKind type_kind);
@@ -63,5 +73,8 @@ Type analyze_expr_statement_inner(AstExpr* stm);
 Type analyze_expr_statement(AstExpr* stm);
 Type analyze_func_call(AstExpr* stm);
 void analyze_func_call_args(AstExpr* stm);
+int type_is_impl(const char* type, ...);
+
+#define type_is(...) type_is_impl(__VA_ARGS__,NULL)
 
 #endif

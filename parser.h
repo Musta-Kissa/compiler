@@ -21,6 +21,8 @@ typedef enum {
     AST_FOR_STATEMENT,    
     AST_EXPRESSION_STATEMENT,
     AST_BLOCK_STATEMENT,
+
+    AST_STRUCT_DECLARATION,
 } Ast_ExprType;
 
 typedef struct AstExpr {
@@ -58,7 +60,7 @@ typedef struct AstExpr {
             Token token;
         } identifier;
         struct Declaretion {
-            char* type_name;          
+            char* type_name;        // NULL if type not given
             char* name;         
             struct AstExpr* value; // AST_EXPRESSION_STATEMENT // CAN BE NULL
             struct AstExpr* next; // CAN BE NULL
@@ -90,7 +92,7 @@ typedef struct AstExpr {
         } while_statement;
         struct ReturnStatement {
             struct AstExpr* expression;
-            struct AstExpr* next;
+            struct AstExpr* next; // Can be NULL
         } return_statement;
         struct BlockStatment {
             struct AstExpr* statements; // Can be NULL
@@ -101,6 +103,11 @@ typedef struct AstExpr {
             struct AstExpr* value; // Can be NULL
             struct AstExpr* next; // Can be NULL
         } expression_statement;
+        struct StructDeclaration {
+            char* name;
+            struct AstExpr* body; // BlockStatment
+            struct AstExpr* next; // Can be NULL
+        } struct_declaration;
     };
 } AstExpr;
 

@@ -1,11 +1,27 @@
-fn bar() -> int {
+struct Kot {
+    kolor: float;
+}
+
+struct Test {
+    ala: int = 3;
+    bartek: float;
+    szkodnik: Kot;
+}
+
+global:int= 3+10*7;
+
+fn bar(float bbb) -> int {
 }
 
 fn foo(float a,int b,int c) -> void {
-    g:= a-a;
+    g:= a;
+    test_var: Test;
+
+    a = test_var.szkodnik.kolor;
+
     i: int;
     h: int = 420;
-    f: int = bar(a,b,c);
+    f: = bar(a);
     for(i = 1; i < f; ++i) {
         i + b;
     }
@@ -13,7 +29,7 @@ fn foo(float a,int b,int c) -> void {
         x: int;
         x > c;
     }
-    if( g > g) {
+    if( g > g ) {
         c: int;
         if( b > c) {
         }

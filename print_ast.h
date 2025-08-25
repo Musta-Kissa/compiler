@@ -176,6 +176,10 @@ void print_block(AstExpr* node) {
     print_statements(node->block_statement.statements);
     printf("}\n");
 }
+void print_struct_decl(AstExpr* node) {
+    printf("\nstruct: name = %s fields = ",node->struct_declaration.name);
+    print_statements(node->struct_declaration.body);
+}
 
 void print_statements(AstExpr* stm) {
     AstExpr* next = stm;
@@ -213,6 +217,10 @@ void print_statements(AstExpr* stm) {
                 print_expr(next->expression_statement.value); 
                 printf("\n");
                 next = next->expression_statement.next;
+                break;
+            case AST_STRUCT_DECLARATION:
+                print_struct_decl(next); 
+                next = next->struct_declaration.next;
                 break;
             default:
                 PANIC("NOT SUPPORTED");
