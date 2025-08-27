@@ -11,9 +11,7 @@ typedef enum TokenKind {
     NUMBER,
     STRING,
 
-    INT,
-    FLOAT,
-    VOID,
+    AMPERSAND,
 
     OPEN_PARENT,
     CLOSE_PARENT,
@@ -40,7 +38,7 @@ typedef enum TokenKind {
     COLON,
     COMMA,
     PLUS,
-    MULTIPLICATION,
+    STAR,
     DIVITION,
     LESS_THEN,
     MORE_THEN,

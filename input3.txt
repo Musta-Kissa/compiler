@@ -1,5 +1,5 @@
 struct Kot {
-    kolor: float;
+    kolor: ***float;
 }
 
 struct Test {
@@ -8,21 +8,24 @@ struct Test {
     szkodnik: Kot;
 }
 
-global:int= 3+10*7;
+globalint:int= 3+10*7;
 
-fn bar(float bbb) -> int {
+fn bar(***float bbb) -> int {
 }
 
 fn foo(float a,int b,int c) -> void {
+    n:***Kot;
+    z:*float;
+    v:***float;
+    f: = bar(v);
     g:= a;
+    f = a;
     test_var: Test;
-
-    a = test_var.szkodnik.kolor;
+    n = test_var.szkodnik.kolor;
 
     i: int;
     h: int = 420;
-    f: = bar(a);
-    for(i = 1; i < f; ++i) {
+    for(i = 1; i < b; ++i) {
         i + b;
     }
     while ( a+a > a ) {

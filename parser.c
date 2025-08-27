@@ -61,9 +61,9 @@ int get_binding_power(Token opp) {
         case MORE_EQUAL:        return 2;
         case EQUAL:             return 2;
 
-        case PLUS:          return 3;
+        case PLUS:              return 3;
         case MINUS:             return 3;
-        case MULTIPLICATION:    return 4;
+        case STAR:              return 4;
         case DIVITION:          return 4;
 
         case PLUS_PLUS:         return 5;
@@ -95,7 +95,7 @@ int is_opp(Token k) {
         case SUBSCRIPT_OPEN: 
         case LESS_THEN: 
         case MORE_THEN: 
-        case MULTIPLICATION:
+        case STAR:
         case PLUS:
         case DIVITION:
         case MINUS:
@@ -263,29 +263,37 @@ AstExpr* parse_decl(Lexer* lexer) {
         node->type = AST_DECLARATION;
     Token ident = Lexer_next(lexer);
         node->declaration.name = ident.value;
+        node->declaration.star_number = 0;
 
     Lexer_next(lexer); // Consume colon
     ASSERT( (Lexer_curr(lexer).kind == COLON ), "%s %d: Expected COLON after type in variable decl, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
 
-    //Token type = (Token){ .kind=VOID };
-    if( Lexer_peek(lexer).kind == ASSIGN ) { // No type given
-        node->declaration.type_name  = NULL;
-        Lexer_next(lexer); // Consume Assign
-        node->declaration.value = parse_expr_statement(lexer);
-    } else 
-    if( Lexer_peek(lexer).kind == IDENT) { // type given
-        node->declaration.type_name  = Lexer_next(lexer).value;
-        if( Lexer_peek(lexer).kind == ASSIGN ) { // Value given
+    switch( Lexer_peek(lexer).kind ) {
+        case ASSIGN:
+            node->declaration.type_name  = NULL;
             Lexer_next(lexer); // Consume Assign
             node->declaration.value = parse_expr_statement(lexer);
-        } else // No value given
-        if( Lexer_peek(lexer).kind == SEMICOLON ) { 
-            node->declaration.value = parse_expr_statement(lexer); // empty expression
-        } else {
-            PANIC("%s %d: Expected ASSIGN or SEMICOLON after TYPE in declaration, got %s",__FILE__,__LINE__,format_enum(Lexer_peek(lexer)));
-        }
-    } else {
-        PANIC("%s %d: Expected TYPE in declaration after COLON, got %s",__FILE__,__LINE__,format_enum(Lexer_peek(lexer)));
+            break;
+        case STAR:
+            while( Lexer_peek(lexer).kind == STAR ) {
+                node->declaration.star_number += 1;
+                Lexer_next(lexer);
+            }
+            // fall-through
+        case IDENT:
+            node->declaration.type_name  = Lexer_next(lexer).value;
+            if( Lexer_peek(lexer).kind == ASSIGN ) { // Value given
+                Lexer_next(lexer); // Consume Assign
+                node->declaration.value = parse_expr_statement(lexer);
+            } else // No value given
+            if( Lexer_peek(lexer).kind == SEMICOLON ) { 
+                node->declaration.value = parse_expr_statement(lexer); // empty expression
+            } else {
+                PANIC("%s %d: Expected ASSIGN or SEMICOLON after TYPE in declaration, got %s",__FILE__,__LINE__,format_enum(Lexer_peek(lexer)));
+            }
+            break;
+        default:
+            PANIC("%s %d: Expected TYPE in declaration after COLON, got %s",__FILE__,__LINE__,format_enum(Lexer_peek(lexer)));
     }
     ASSERT( (Lexer_curr(lexer).kind == SEMICOLON), "%s %d: Expected SEMICOLON, got %s, lexer idx:%d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     return node;
@@ -294,9 +302,14 @@ AstExpr* parse_decl(Lexer* lexer) {
 AstExpr* parse_arg_decl(Lexer* lexer) {
     AstExpr* arg_node = (AstExpr*)malloc(sizeof(AstExpr));
         arg_node->type = AST_ARGUMENT_DECLARATION;
+        arg_node->argument_decl.star_number = 0;
+
+    while( Lexer_peek(lexer).kind == STAR) {
+        arg_node->argument_decl.star_number += 1;
+        Lexer_next(lexer);
+    }
         arg_node->argument_decl.type_name = Lexer_next(lexer).value;
     //ASSERT( is_type(arg_node->argument_decl.type) ,"%s %d: expected TYPE for arg decl, got %s",__FILE__,__LINE__,format_enum(arg_node->argument_decl.type) );
-
         arg_node->argument_decl.ident = Lexer_next(lexer);
     ASSERT( arg_node->argument_decl.ident.kind == IDENT ,"%s %d: expected TYPE for arg decl, got %s",__FILE__,__LINE__,format_enum(arg_node->argument_decl.ident) );
 
@@ -332,6 +345,8 @@ AstExpr* parse_func_decl(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME FN 
     AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
         node->type = AST_FUNCTION_DECLARATION;
+        node->function_declaration.star_number = 0;
+
     Token ident = Lexer_next(lexer);
         node->function_declaration.name = ident.value;
     ASSERT( (Lexer_curr(lexer).kind == IDENT) , "%s %d: expected fn IDENT, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
@@ -346,8 +361,13 @@ AstExpr* parse_func_decl(Lexer* lexer) {
         node->function_declaration.args = parse_arg_decl(lexer);
         ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT) , "%s %d: expected CLOSE_PARENT, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     }
+
     if( Lexer_peek(lexer).kind == ARROW ) {
         Lexer_next(lexer);
+        while( Lexer_peek(lexer).kind == STAR ) {
+            node->function_declaration.star_number += 1;
+            Lexer_next(lexer);
+        }
         Token return_type_name = Lexer_next(lexer);
         //ASSERT( (is_type(return_type)) , "%s %d: expected type name after '->', got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
         node->function_declaration.return_type_name = return_type_name.value;
@@ -548,17 +568,6 @@ AstExpr* parse_statements(Lexer* lexer) {
         node->expression_statement.next = parse_statements(lexer);
         return node;
     }
-    /*
-    if( is_type(next) ) { // DECLARATION
-        node = parse_decl(lexer);
-        node->declaration.next = parse_statements(lexer);
-        return node;
-    } else { // EXPR
-        node = parse_expr_statement(lexer);
-        node->expression_statement.next = parse_statements(lexer);
-        return node;
-    }
-    */
 }
 
 AstExpr* parse_program(Lexer* lexer) {

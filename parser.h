@@ -2,6 +2,7 @@
 #define PARSER_H
 
 #include "lexer.h"
+#include "types.h"
 
 typedef enum {
     AST_BINARY_OPERATION,   
@@ -46,6 +47,7 @@ typedef struct AstExpr {
             struct AstExpr* next; // CAN BE NULL
         } argument;
         struct ArgDecl {
+            uint8_t star_number;
             char* type_name;
             Token ident;
             struct AstExpr* next; // CAN BE NULL
@@ -60,12 +62,14 @@ typedef struct AstExpr {
             Token token;
         } identifier;
         struct Declaretion {
+            uint8_t star_number;
             char* type_name;        // NULL if type not given
             char* name;         
             struct AstExpr* value; // AST_EXPRESSION_STATEMENT // CAN BE NULL
             struct AstExpr* next; // CAN BE NULL
         } declaration;
         struct FunctionDeclaration {
+            uint8_t star_number;
             char* return_type_name;   
             char* name;          
             struct AstExpr* args;      
@@ -99,7 +103,6 @@ typedef struct AstExpr {
             struct AstExpr* next; // Can be NULL
         } block_statement;
         struct ExpressionStatement {
-            //char* type_name;
             struct AstExpr* value; // Can be NULL
             struct AstExpr* next; // Can be NULL
         } expression_statement;

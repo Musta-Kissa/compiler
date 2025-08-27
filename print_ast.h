@@ -3,8 +3,8 @@
 #include <stdlib.h>
 
 #include "lexer.h"
-#include "my_string.h"
 #include "parser.h"
+#include "my_string.h"
 
 #define ASSERT(expr, fmt, ...) { \
     if (!expr) { \
@@ -76,7 +76,7 @@ void print_expr(AstExpr* expr) {
                 printf("+"); break;
             case DIVITION:
                 printf("/"); break;
-            case MULTIPLICATION:
+            case STAR:
                 printf("*"); break;
             case LESS_THEN:
                 printf("<"); break;
@@ -119,14 +119,21 @@ void print_expr(AstExpr* expr) {
 void print_arg_decl(AstExpr* arg) {
     AstExpr* next = arg;
     while( next != NULL ) {
-        printf("\targ: type= {%s} name= {%s}\n",next->argument_decl.type_name,next->argument_decl.ident.value);
+        printf("\targ: type= {");
+        for(int n = 0 ; n < next->argument_decl.star_number; n++) {
+            printf("*");
+        }
+        printf("%s} name= {%s}\n",next->argument_decl.type_name,next->argument_decl.ident.value);
         next = next->argument_decl.next;
     }
 }
 
 void print_func_decl(AstExpr* node) {
-    printf("func: name= {%s} return_type= {%s}\n",
-            node->function_declaration.name,
+    printf("func: name= {%s} return_type= {", node->function_declaration.name);
+    for(int n = 0 ; n < node->function_declaration.star_number;n++) {
+        printf("*");
+    }
+    printf("%s}\n",
             node->function_declaration.return_type_name);
     print_arg_decl(node->function_declaration.args);
     // print body
@@ -136,8 +143,11 @@ void print_func_decl(AstExpr* node) {
 }
 
 void print_decl(AstExpr* node) {
-    printf("decl: name= {%s} type= {%s} value= ",
-            node->declaration.name,
+    printf("decl: name= {%s} type= {", node->declaration.name);
+     for(int n = 0 ; n < node->declaration.star_number; n++) {
+         printf("*");
+     }
+    printf("%s} value= ",
             node->declaration.type_name);
     print_statements(node->declaration.value);
     printf("\n");
@@ -232,3 +242,4 @@ void print_program_ast(AstExpr* ast) {
     print_statements(ast);
     printf("\n");
 }
+

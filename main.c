@@ -18,11 +18,12 @@ int main(int argc, char* argv[]) {
     FILE* f = fopen("./input3.txt","r");
 
     String source = String_readfile(f);
-    printf("source: \n%s",source.data);
-    printf("============= end source ===============\n\n");
+    //printf("source: \n%s",source.data);
+    //printf("============= end source ===============\n\n");
 
     Lexer lexer = lex_file(source);
 
+    /*
     for( int n = 0; lexer.tokens[n-1].kind != EOF_TOKEN ; n++) {
         Token t = lexer.tokens[n];
         printf("%d: %s ",n,format_enum(t));
@@ -34,6 +35,7 @@ int main(int argc, char* argv[]) {
         }
         printf("\n");
     }
+    */
 
     AstExpr* program = parse_program(&lexer);
     print_program_ast(program);

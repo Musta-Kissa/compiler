@@ -18,11 +18,9 @@ const char* format_enum(Token k) {
         //case TYPE:                  return "TYPE";
         case IDENT:                 return "IDENT";
         case NUMBER:                return "NUMBER";
-
         case STRING:                return "STRING";
-        case INT:                   return "INT";
-        case FLOAT:                 return "FLOAT";
-        case VOID:                  return "VOID";
+
+        case AMPERSAND:             return "AMPERSAND";
 
         case OPEN_PARENT:           return "OPEN_PARENT";
         case CLOSE_PARENT:          return "CLOSE_PARENT";
@@ -35,7 +33,7 @@ const char* format_enum(Token k) {
         case COMMA:                 return "COMMA";
         case DOT:                   return "DOT";
         case PLUS:                  return "PLUS";
-        case MULTIPLICATION:        return "MULTIPLICATION";
+        case STAR:                  return "STAR";
         case DIVITION:              return "DIVITION";
         case LESS_THEN:             return "LESS_THEN";
         case MORE_THEN:             return "MORE_THEN";
@@ -82,7 +80,7 @@ int get_keyword(char* buff,Token* t) {
 }
 
 int is_terminal(char c) {
-    const char terminals[] = {':','!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '-', '*', '/', '<', '>', ';', ' ', '\n','\"'};
+    const char terminals[] = {'&',':','!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '-', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
 
     for ( int i = 0; i < len; i++) {
@@ -132,12 +130,13 @@ Lexer lex_file(String string) {
     while((c = String_getc(&string)) != EOF ) {
         ASSERT((tokens_idx < 1000),"%s %d: EXEEDED MAX TOKENS",__FILE__,__LINE__);
         switch(c) {
+            case '&': tokens[tokens_idx++] = (Token){ .kind=AMPERSAND };                continue;
             case ':': tokens[tokens_idx++] = (Token){ .kind=COLON };                continue;
             case '(': tokens[tokens_idx++] = (Token){ .kind=OPEN_PARENT };          continue;
             case ')': tokens[tokens_idx++] = (Token){ .kind=CLOSE_PARENT };         continue;
             case '{': tokens[tokens_idx++] = (Token){ .kind=OPEN_CURRLY_PARENT };   continue;
             case '}': tokens[tokens_idx++] = (Token){ .kind=CLOSE_CURRLY_PARENT };  continue;
-            case '*': tokens[tokens_idx++] = (Token){ .kind=MULTIPLICATION };       continue;
+            case '*': tokens[tokens_idx++] = (Token){ .kind=STAR };       continue;
             case '/': tokens[tokens_idx++] = (Token){ .kind=DIVITION };             continue;
             case ';': tokens[tokens_idx++] = (Token){ .kind=SEMICOLON };            continue;
             case ',': tokens[tokens_idx++] = (Token){ .kind=COMMA };                continue;
@@ -169,7 +168,7 @@ Lexer lex_file(String string) {
                     tokens[tokens_idx++] = (Token){ .kind=LESS_EQUAL };   
                 } else {
                     String_ungetc(&string);
-                    tokens[tokens_idx++] = (Token){ .kind=MORE_THEN };     
+                    tokens[tokens_idx++] = (Token){ .kind=LESS_THEN };     
                 } continue;
             case '>':
                 if( String_getc(&string) == '=') {

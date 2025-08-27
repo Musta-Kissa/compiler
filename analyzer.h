@@ -5,45 +5,9 @@
 #define VARS_NUM   1000
 #define TYPES_NUM  1000
 
+#include <stdint.h>
 #include "parser.h"
-
-typedef struct TypeListNode TypeListNode;
-typedef struct FieldListNode FieldListNode;
-
-typedef enum TypeKind {
-    FUNCTION_TYPE,
-    STRUCT_TYPE,
-    PRIMITIVE_TYPE,
-    ENUM_TYPE,
-    UNION_TYPE,
-    //UNKNOWN_TYPE,
-} TypeKind;
-
-typedef struct Type {
-    TypeKind type_kind;
-    const char* type_name;
-    union {
-        struct FunctionType {
-            TypeListNode* arg_types;
-        } function_type;
-        struct StructType{
-            FieldListNode* fields;
-        } struct_type;
-    }
-} Type;
-
-struct FieldListNode {
-    Type type;
-    char* name;
-    FieldListNode* next; // Can be NULL
-};
-
-struct TypeListNode {
-    Type type;
-    TypeListNode* next; // Can be NULL
-};
-
-Type Type_new(char* type_name, TypeKind type_kind);
+#include "types.h"
 
 typedef struct Variable {
     char* ident;
@@ -74,6 +38,7 @@ Type analyze_expr_statement(AstExpr* stm);
 Type analyze_func_call(AstExpr* stm);
 void analyze_func_call_args(AstExpr* stm);
 int type_is_impl(const char* type, ...);
+Type create_type_from_ast_node(AstExpr* node);
 
 #define type_is(...) type_is_impl(__VA_ARGS__,NULL)
 
