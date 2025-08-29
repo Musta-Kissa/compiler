@@ -29,15 +29,15 @@ fn foo(float a,int b,int c) -> *float {
 
     i: int;
     h: int = 420;
-    for(i = 1; i < b; ++i) {
+    for i:int = 1; i < b; ++i {
         i + b;
     }
-    while ( a+a > a ) {
+    while a+a > a {
         x: int;
         x > c;
         return &a;
     }
-    if( g > g ) {
+    if g > g  {
         c: int;
         if( b > c) {
         }

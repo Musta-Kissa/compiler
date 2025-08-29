@@ -204,6 +204,7 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
         return NULL; //PRETEND EOF
     }
     if( !is_opp(next) && !is_unary(next)) { // EOF
+        // comma,close_parent -> func_call ; semicolon -> any expr; open_curly_parent -> for/while/if statement
         ASSERT((next.kind == SEMICOLON || next.kind == COMMA || next.kind == OPEN_CURRLY_PARENT || next.kind == CLOSE_PARENT), 
                 "%s %d: expected SEMICOLON, COMMA , CLOSE_PARENT or OPEN_CURRLY_PARENT, got %s, lexer idx: %d", __FILE__, __LINE__, format_enum(next), lexer->idx);
         return NULL;
@@ -394,17 +395,19 @@ AstExpr* parse_for(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME FOR
     AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
         node->type = AST_FOR_STATEMENT;
-    Lexer_next(lexer); // consume the opent paret so it will not be interpreted by the as part of the parse expr 
-    ASSERT( (Lexer_curr(lexer).kind == OPEN_PARENT), "%s %d: Expected OPEN_PARENT after FOR keyword",__FILE__,__LINE__);
+    //Lexer_next(lexer); // consume the opent paret so it will not be interpreted by the as part of the parse expr 
+    //ASSERT( (Lexer_curr(lexer).kind == OPEN_PARENT), "%s %d: Expected OPEN_PARENT after FOR keyword",__FILE__,__LINE__);
 
     node->for_statement.initial = parse_statement(lexer);
-    ASSERT( (Lexer_curr(lexer).kind == SEMICOLON ), "%s %d: Expected SEMICOLON after IF init expr, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
+    ASSERT( (Lexer_curr(lexer).kind == SEMICOLON ), "%s %d: Expected SEMICOLON after FOR init expr, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
 
     node->for_statement.condition = parse_statement(lexer);
-    ASSERT( (Lexer_curr(lexer).kind == SEMICOLON ), "%s %d: Expected SEMICOLON after IF condition expr",__FILE__,__LINE__);
+    ASSERT( (Lexer_curr(lexer).kind == SEMICOLON ), "%s %d: Expected SEMICOLON after FOR condition expr",__FILE__,__LINE__);
 
     node->for_statement.iteration = parse_statement(lexer);
-    ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT ), "%s %d: Expected SEMICOLON after IF iteration expr",__FILE__,__LINE__);
+    //ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT ), "%s %d: Expected OPEN_CURRLY_PARENT after FOR iteration expr, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
+    //ASSERT( (Lexer_curr(lexer).kind == SEMICOLON ), "%s %d: Expected SEMICOLON after IF iteration expr",__FILE__,__LINE__);
+    //lexer->idx--;
 
     ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{', got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     node->for_statement.body = parse_block_statement(lexer);
@@ -416,10 +419,10 @@ AstExpr* parse_while(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME WHILE
     AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
         node->type = AST_WHILE_STATEMENT;
-    Lexer_next(lexer); // consume the opent paret so it will not be interpreted by the as part of the parse expr 
-    ASSERT( (Lexer_curr(lexer).kind == OPEN_PARENT), "%s %d: Expected OPEN_PARENT after WHILE keyword",__FILE__,__LINE__);
+    //Lexer_next(lexer); // consume the opent paret so it will not be interpreted by the as part of the parse expr 
+    //ASSERT( (Lexer_curr(lexer).kind == OPEN_PARENT), "%s %d: Expected OPEN_PARENT after WHILE keyword",__FILE__,__LINE__);
     node->while_statement.condition = parse_statement(lexer);
-    ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT ), "%s %d: Expected CLOSE_PARENT after WHILE condition iteration expr, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
+    //ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT ), "%s %d: Expected CLOSE_PARENT after WHILE condition iteration expr, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
 
     ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{', got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     node->while_statement.body = parse_block_statement(lexer);
@@ -438,13 +441,13 @@ AstExpr* parse_if(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME IF
     AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
         node->type = AST_IF_STATEMENT;
-    Lexer_next(lexer); // consume the opent paret so it will not be interpreted by the as part of the parse expr 
-    ASSERT( (Lexer_curr(lexer).kind == OPEN_PARENT ), "%s %d: Expected OPEN_PARENT after IF keyword",__FILE__,__LINE__);
+    //Lexer_next(lexer); // consume the opent paret so it will not be interpreted by the as part of the parse expr 
+    //ASSERT( (Lexer_curr(lexer).kind == OPEN_PARENT ), "%s %d: Expected OPEN_PARENT after IF keyword",__FILE__,__LINE__);
     node->if_statement.condition = parse_expr_statement(lexer);
-    ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT ), "%s %d: Expected CLOSE_PARENT after IF condition, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
+    //ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT ), "%s %d: Expected CLOSE_PARENT after IF condition, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
 
 
-    ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{', got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
+    ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{', got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_peek(lexer)),lexer->idx);
     node->if_statement.body = parse_block_statement(lexer);
     ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after if_statement body, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     return node;
@@ -457,7 +460,10 @@ AstExpr* parse_expr_statement(Lexer* lexer) {
         //node->expression_statement.type_name = NULL;
         node->expression_statement.value = parse_expr(lexer,0);
     Token next = Lexer_next(lexer); // CONSUME (SEMICOLON) or (CLOSE_PARENT if in a for loop)
-    ASSERT( (next.kind == SEMICOLON || next.kind == CLOSE_PARENT || next.kind == COMMA ), "%s %d: Expected SEMICOLON, CLOSE_PARENT or COMMA after expr statement , got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
+    ASSERT( (next.kind == SEMICOLON || next.kind == OPEN_CURRLY_PARENT || next.kind == CLOSE_PARENT || next.kind == COMMA ), "%s %d: Expected SEMICOLON, OPEN_CURRLY_PARENT, CLOSE_PARENT or COMMA after expr statement , got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
+    if( next.kind == OPEN_CURRLY_PARENT ) {
+        lexer->idx--;
+    }
     return node;
 }
 AstExpr* parse_struct_decl(Lexer* lexer) {
