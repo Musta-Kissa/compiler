@@ -38,7 +38,8 @@ Type analyze_expr_statement(AstExpr* stm);
 Type analyze_func_call(AstExpr* stm);
 void analyze_func_call_args(AstExpr* stm);
 int type_is_impl(const char* type, ...);
-Type create_type_from_ast_node(AstExpr* node);
+Type create_type_from_ast_node(AstExpr* node); // Depricated
+int analyze_type(Type* type);
 
 #define type_is(...) type_is_impl(__VA_ARGS__,NULL)
 

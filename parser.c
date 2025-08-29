@@ -70,8 +70,11 @@ int get_binding_power(Token opp) {
         case MINUS_MINUS:       return 5;
 
         case NOT:               return 6;
+        case AMPERSAND:         return 6;
+
         case SUBSCRIPT_OPEN:    return 7;
         case DOT:               return 8;
+
         default:
             PANIC("BINDING POWER NOT SUPPORTED");
     }
@@ -83,6 +86,7 @@ int is_unary(Token k) {
         case MINUS:
         case PLUS_PLUS:
         case MINUS_MINUS:
+        case AMPERSAND:
             return 1;
         default: 
             return 0;
@@ -263,25 +267,22 @@ AstExpr* parse_decl(Lexer* lexer) {
         node->type = AST_DECLARATION;
     Token ident = Lexer_next(lexer);
         node->declaration.name = ident.value;
-        node->declaration.star_number = 0;
+        //node->declaration.type_info.star_number = 0;
 
     Lexer_next(lexer); // Consume colon
     ASSERT( (Lexer_curr(lexer).kind == COLON ), "%s %d: Expected COLON after type in variable decl, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
 
     switch( Lexer_peek(lexer).kind ) {
         case ASSIGN:
-            node->declaration.type_name  = NULL;
+            node->declaration.type = NULL;
             Lexer_next(lexer); // Consume Assign
             node->declaration.value = parse_expr_statement(lexer);
             break;
-        case STAR:
-            while( Lexer_peek(lexer).kind == STAR ) {
-                node->declaration.star_number += 1;
-                Lexer_next(lexer);
-            }
-            // fall-through
-        case IDENT:
-            node->declaration.type_name  = Lexer_next(lexer).value;
+        case STAR: // *int
+        case SUBSCRIPT_OPEN: // []int
+        case IDENT: // int
+            node->declaration.type = parse_type(lexer);
+            //node->declaration.type_info.type_name  = Lexer_next(lexer).value;
             if( Lexer_peek(lexer).kind == ASSIGN ) { // Value given
                 Lexer_next(lexer); // Consume Assign
                 node->declaration.value = parse_expr_statement(lexer);
@@ -302,16 +303,19 @@ AstExpr* parse_decl(Lexer* lexer) {
 AstExpr* parse_arg_decl(Lexer* lexer) {
     AstExpr* arg_node = (AstExpr*)malloc(sizeof(AstExpr));
         arg_node->type = AST_ARGUMENT_DECLARATION;
-        arg_node->argument_decl.star_number = 0;
-
+    /*
+        arg_node->argument_decl.type_info.star_number = 0;
     while( Lexer_peek(lexer).kind == STAR) {
-        arg_node->argument_decl.star_number += 1;
+        arg_node->argument_decl.type_info.star_number += 1;
         Lexer_next(lexer);
     }
-        arg_node->argument_decl.type_name = Lexer_next(lexer).value;
+    */
+    arg_node->argument_decl.type = parse_type(lexer);
+
+
     //ASSERT( is_type(arg_node->argument_decl.type) ,"%s %d: expected TYPE for arg decl, got %s",__FILE__,__LINE__,format_enum(arg_node->argument_decl.type) );
-        arg_node->argument_decl.ident = Lexer_next(lexer);
-    ASSERT( arg_node->argument_decl.ident.kind == IDENT ,"%s %d: expected TYPE for arg decl, got %s",__FILE__,__LINE__,format_enum(arg_node->argument_decl.ident) );
+        arg_node->argument_decl.ident = Lexer_next(lexer).value;
+    ASSERT( Lexer_curr(lexer).kind == IDENT ,"%s %d: expected TYPE for arg decl, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)) );
 
     Token next = Lexer_next(lexer);
     switch(next.kind) {
@@ -345,7 +349,7 @@ AstExpr* parse_func_decl(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME FN 
     AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
         node->type = AST_FUNCTION_DECLARATION;
-        node->function_declaration.star_number = 0;
+        //node->function_declaration.return_type_info.star_number = 0;
 
     Token ident = Lexer_next(lexer);
         node->function_declaration.name = ident.value;
@@ -364,15 +368,21 @@ AstExpr* parse_func_decl(Lexer* lexer) {
 
     if( Lexer_peek(lexer).kind == ARROW ) {
         Lexer_next(lexer);
+        node->function_declaration.return_type = parse_type(lexer);
+        /*
         while( Lexer_peek(lexer).kind == STAR ) {
-            node->function_declaration.star_number += 1;
+            node->function_declaration.return_type_info.star_number += 1;
             Lexer_next(lexer);
         }
         Token return_type_name = Lexer_next(lexer);
         //ASSERT( (is_type(return_type)) , "%s %d: expected type name after '->', got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
-        node->function_declaration.return_type_name = return_type_name.value;
+        node->function_declaration.return_type_info.type_name = return_type_name.value;
+        */
+
     } else {
-        node->function_declaration.return_type_name = "void";
+        Type* return_type = (Type*)malloc(sizeof(Type));
+        *return_type = (Type){.type_kind=UNKNOWN_TYPE, .type_name = "void" };
+        node->function_declaration.return_type = return_type;
     }
     ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{', got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     node->function_declaration.body = parse_block_statement(lexer);
@@ -464,7 +474,7 @@ AstExpr* parse_statement(Lexer* lexer) {
     Token next = Lexer_peek(lexer);
     if( next.kind == EOF_TOKEN || next.kind == CLOSE_CURRLY_PARENT) // The caller must consume the CLOSE_CURRLY_PARENT
         return NULL;
-    if( next.kind == SEMICOLON || next.kind == CLOSE_PARENT ) { // We are in an empty for loop statement
+    if( next.kind == SEMICOLON || next.kind == CLOSE_PARENT ) { // We are in an empty for loop statement or empty return_expr
         Lexer_next(lexer);
         return NULL;
     }
@@ -503,7 +513,7 @@ AstExpr* parse_statement(Lexer* lexer) {
             return node;
     }
     // expected identifier than if ':' its a declaration if not an expression;
-    ASSERT( (next.kind == IDENT || next.kind == OPEN_PARENT || is_unary(next)) ,"expected KEYWORD,UNARY_OPP,OPEN_CURRLY_PARENT, OPEN_PARENT or IDENT got %s, idx: %d",format_enum(next),lexer->idx);
+    //ASSERT( (next.kind == IDENT || next.kind == OPEN_PARENT || is_unary(next)) ,"expected KEYWORD,UNARY_OPP,OPEN_CURRLY_PARENT, OPEN_PARENT or IDENT got %s, idx: %d",format_enum(next),lexer->idx);
 
     if( Lexer_peek_n(lexer,2).kind == COLON ) {
         node = parse_decl(lexer);
@@ -557,7 +567,7 @@ AstExpr* parse_statements(Lexer* lexer) {
             return node;
     }
     // expected identifier than if ':' its a declaration if not an expression;
-    ASSERT( (next.kind == IDENT) ,"expected KEYWORK, OPEN_CURRLY_PARENT or IDENT got %s",format_enum(next));
+    //ASSERT( (next.kind == IDENT || next.kind == OPEN_PARENT || is_unary(next)) ,"expected KEYWORD,UNARY_OPP,OPEN_CURRLY_PARENT, OPEN_PARENT or IDENT got %s, idx: %d",format_enum(next),lexer->idx);
 
     if( Lexer_peek_n(lexer,2).kind == COLON ) {
         node = parse_decl(lexer);
@@ -573,4 +583,52 @@ AstExpr* parse_statements(Lexer* lexer) {
 AstExpr* parse_program(Lexer* lexer) {
     AstExpr* ast = parse_statements(lexer);
     return ast;
+}
+
+#include <errno.h>
+//returns one of:
+// POINTER_TYPE,
+// ARRAY_TYPE,
+// UNKNOWN_TYPE,
+Type* parse_type(Lexer* lexer) {
+    Type* type = (Type*)malloc(sizeof(Type));
+    Token next = Lexer_next(lexer);
+    switch( next.kind ) {
+        case STAR:
+            type->type_kind = POINTER_TYPE;
+            type->type_name = NULL;
+
+            type->pointer_type.sub_type = parse_type(lexer);
+            return type;
+        case SUBSCRIPT_OPEN: 
+            type->type_kind = ARRAY_TYPE;
+            type->type_name = NULL;
+            type->array_type.length = 0;
+            
+            if( Lexer_peek(lexer).kind == NUMBER ) {
+                char* num_str = Lexer_next(lexer).value;
+                char *endptr;
+                type->array_type.length = strtol(num_str, &endptr, 10);
+
+                if( errno == ERANGE ) {
+                    PANIC("%s %d: Value out of range",__FILE__,__LINE__);
+                } else if( endptr == num_str ) {
+                    //No digits were found
+                    PANIC("%s %d:UNRACHABLE!!!",__FILE__,__LINE__);
+                } else if( type->array_type.length == 0 ) {
+                    PANIC("Array lenght cant be zero!");
+                }
+            }
+
+            Lexer_next(lexer);
+            ASSERT( (Lexer_curr(lexer).kind == SUBSCRIPT_CLOSE), "Expected SUBSCRIPT_CLOSE after SUBSCRIPT_OPEN while parsing type, got %s, idx:%d",format_enum(next),lexer->idx);
+            type->array_type.sub_type = parse_type(lexer);
+            return type;
+        case IDENT:
+            type->type_kind = UNKNOWN_TYPE;
+            type->type_name = next.value;
+            return type;
+        default:
+            PANIC("Expected STAR,SUBSCRIPT_OPEN or IDENT, got %s (%s)",format_enum(next),next.value);
+    }
 }

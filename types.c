@@ -62,28 +62,45 @@ int Type_cmp(Type* type1, Type* type2) {
         return 0;
     }
     switch( type1->type_kind ) {
-        case STRUCT_TYPE:
         case PRIMITIVE_TYPE:
+            if( strcmp(type1->type_name,type2->type_name) == 0 ) {
+                return 1;
+            } else {
+                return 0;
+            }
+        case STRUCT_TYPE:
         case ENUM_TYPE:
         case UNION_TYPE:
             return 1;
         case POINTER_TYPE:
             return Type_cmp(type1->pointer_type.sub_type,type2->pointer_type.sub_type);
+        case ARRAY_TYPE:
+            return Type_cmp(type1->array_type.sub_type,type2->array_type.sub_type);
         case FUNCTION_TYPE:
             PANIC("Function types comparison is not implemented");
+        default:
+            PANIC("%s %d:PANICKED",__FILE__,__LINE__);
     }
 }
 
 void Type_build_type_string(StringBuilder* sb, Type* type ){
+    if( type == NULL ) {
+        return;
+    }
     switch( type->type_kind ) {
         case STRUCT_TYPE:
         case PRIMITIVE_TYPE:
         case ENUM_TYPE:
+        case UNKNOWN_TYPE:
         case UNION_TYPE:
             sb_append(sb,"%s",type->type_name);
             return;
         case POINTER_TYPE:
             sb_append(sb,"*");
+            Type_build_type_string(sb,type->pointer_type.sub_type);
+            return;
+        case ARRAY_TYPE:
+            sb_append(sb,"[]");
             Type_build_type_string(sb,type->pointer_type.sub_type);
             return;
         case FUNCTION_TYPE:
@@ -104,5 +121,36 @@ void Type_build_type_string(StringBuilder* sb, Type* type ){
             sb_append(sb,") -> ");
             Type_build_type_string(sb,type->function_type.return_type);
             return;
+        case NUMBER_TYPE:
+            sb_append(sb,"NUMBER_TYPE");
+            Type_build_type_string(sb,type->pointer_type.sub_type);
+            return;
+        case BOOL_TYPE:
+            sb_append(sb,"BOOL_TYPE");
+            Type_build_type_string(sb,type->pointer_type.sub_type);
+            return;
+        default:
+            PANIC("%s %d:PANICKED",__FILE__,__LINE__);
+    }
+}
+int Type_is_lvalue(Type* type){
+    switch( type->type_kind ) {
+        case ARRAY_TYPE:
+        case STRUCT_TYPE:
+        case UNION_TYPE:
+        case ENUM_TYPE:
+        case PRIMITIVE_TYPE:
+            return true;
+
+        case NUMBER_TYPE:
+        case BOOL_TYPE:
+        case POINTER_TYPE:
+        case FUNCTION_TYPE:
+            return false;
+
+
+        case UNKNOWN_TYPE:
+        default:
+            PANIC("%s %d: PANICKED",__FILE__,__LINE__);
     }
 }

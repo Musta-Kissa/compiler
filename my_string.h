@@ -22,6 +22,7 @@ typedef struct {
 } StringBuilder;
 
 StringBuilder sb_new();
+void sb_reset(StringBuilder* sb);
 void sb_free(StringBuilder* sb);
 void sb_append(StringBuilder* sb, const char* fmt, ...);
 

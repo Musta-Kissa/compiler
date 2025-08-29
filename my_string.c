@@ -51,6 +51,11 @@ StringBuilder sb_new() {
     return sb;
 }
 
+void sb_reset(StringBuilder* sb) {
+    sb->length = 0;
+    sb->buffer[0] = '\0';
+}
+
 void sb_free(StringBuilder* sb) {
     free(sb->buffer);
 }
@@ -119,6 +124,8 @@ void print_expr_to_sb(StringBuilder* sb,AstExpr* expr) {
                 sb_append(sb,"++"); break;
             case MINUS_MINUS:
                 sb_append(sb,"--"); break;
+            case AMPERSAND:
+                sb_append(sb,"&"); break;
         }
         sb_append(sb," "); 
         print_expr_to_sb(sb,expr->unary_operation.right);

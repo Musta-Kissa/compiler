@@ -5,6 +5,7 @@
 #include "lexer.h"
 #include "parser.h"
 #include "my_string.h"
+#include "types.h"
 
 #define ASSERT(expr, fmt, ...) { \
     if (!expr) { \
@@ -64,6 +65,8 @@ void print_expr(AstExpr* expr) {
                 printf("++"); break;
             case MINUS_MINUS:
                 printf("--"); break;
+            case AMPERSAND:
+                printf("&"); break;
         }
         printf(" "); 
         print_expr(expr->unary_operation.right);
@@ -118,23 +121,31 @@ void print_expr(AstExpr* expr) {
 
 void print_arg_decl(AstExpr* arg) {
     AstExpr* next = arg;
+    StringBuilder sb = sb_new();
     while( next != NULL ) {
+
+        Type_build_type_string(&sb,next->argument_decl.type);
+
+        printf("\targ: type= {%s} name = {%s}",sb.buffer,next->argument_decl.ident);
+
+        /*
         printf("\targ: type= {");
-        for(int n = 0 ; n < next->argument_decl.star_number; n++) {
+        for(int n = 0 ; n < next->argument_decl.type_info.star_number; n++) {
             printf("*");
         }
-        printf("%s} name= {%s}\n",next->argument_decl.type_name,next->argument_decl.ident.value);
+        printf("%s} name= {%s}\n",next->argument_decl.type_info.type_name,next->argument_decl.ident);
+        */
+        sb_reset(&sb);
+
         next = next->argument_decl.next;
     }
 }
 
 void print_func_decl(AstExpr* node) {
-    printf("func: name= {%s} return_type= {", node->function_declaration.name);
-    for(int n = 0 ; n < node->function_declaration.star_number;n++) {
-        printf("*");
-    }
-    printf("%s}\n",
-            node->function_declaration.return_type_name);
+    StringBuilder sb = sb_new();
+    Type_build_type_string(&sb,node->function_declaration.return_type);
+
+    printf("func: name= {%s} return_type= {%s}\n",node->function_declaration.name,sb.buffer );
     print_arg_decl(node->function_declaration.args);
     // print body
     printf(" body= ");
@@ -143,12 +154,10 @@ void print_func_decl(AstExpr* node) {
 }
 
 void print_decl(AstExpr* node) {
-    printf("decl: name= {%s} type= {", node->declaration.name);
-     for(int n = 0 ; n < node->declaration.star_number; n++) {
-         printf("*");
-     }
-    printf("%s} value= ",
-            node->declaration.type_name);
+    StringBuilder sb = sb_new();
+    Type_build_type_string(&sb,node->declaration.type);
+
+    printf("decl: name= {%s} type= {%s} value= ", node->declaration.name, sb.buffer); 
     print_statements(node->declaration.value);
     printf("\n");
 }

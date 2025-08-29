@@ -15,7 +15,6 @@ typedef enum {
     AST_IDENTIFIER,       
     AST_DECLARATION,    
     AST_FUNCTION_DECLARATION,
-    AST_COMPOUND_STATEMENT, 
     AST_RETURN_STATEMENT,   
     AST_IF_STATEMENT,       
     AST_WHILE_STATEMENT,   
@@ -25,6 +24,12 @@ typedef enum {
 
     AST_STRUCT_DECLARATION,
 } Ast_ExprType;
+
+typedef struct TypeInfo {
+    uint8_t star_number;
+    uint8_t is_array; 
+    char* type_name;
+} TypeInfo;
 
 typedef struct AstExpr {
     Ast_ExprType type;            
@@ -47,9 +52,8 @@ typedef struct AstExpr {
             struct AstExpr* next; // CAN BE NULL
         } argument;
         struct ArgDecl {
-            uint8_t star_number;
-            char* type_name;
-            Token ident;
+            Type* type;
+            char* ident;
             struct AstExpr* next; // CAN BE NULL
         } argument_decl;
         struct Number {
@@ -62,15 +66,13 @@ typedef struct AstExpr {
             Token token;
         } identifier;
         struct Declaretion {
-            uint8_t star_number;
-            char* type_name;        // NULL if type not given
+            Type* type;
             char* name;         
             struct AstExpr* value; // AST_EXPRESSION_STATEMENT // CAN BE NULL
             struct AstExpr* next; // CAN BE NULL
         } declaration;
         struct FunctionDeclaration {
-            uint8_t star_number;
-            char* return_type_name;   
+            Type* return_type;
             char* name;          
             struct AstExpr* args;      
             struct AstExpr* body; // BlockStatment
@@ -129,6 +131,8 @@ AstExpr* parse_statements(Lexer* lexer);
 AstExpr* parse_statement(Lexer* lexer);
 AstExpr* parse_function_call(Lexer* lexer,Token ident);
 AstExpr* parse_unary(Lexer* lexer, Token opp);
+TypeInfo parse_type_info(Lexer* lexer);
+Type* parse_type(Lexer* lexer);
 
 AstExpr* Ast_make_number(Token number);
 AstExpr* Ast_make_ident(Token ident);

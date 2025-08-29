@@ -1,27 +1,31 @@
 struct Kot {
-    kolor: ***float;
+    kolor: *float;
 }
 
 struct Test {
     ala: int = 3;
     bartek: float;
-    szkodnik: Kot;
+    szkodnik: [1]Kot;
 }
 
 globalint:int= 3+10*7;
 
-fn bar(***float bbb) -> int {
+
+fn bar([][]float bbb) -> int {
+    return 3;
 }
 
-fn foo(float a,int b,int c) -> void {
-    n:***Kot;
-    z:*float;
-    v:***float;
+fn fazz([]Kot koty) {
+    return;
+}
+
+fn foo(float a,int b,int c) -> *float {
+    z:*float = &a;
+    v: [10][1]float;
     f: = bar(v);
     g:= a;
-    f = a;
     test_var: Test;
-    n = test_var.szkodnik.kolor;
+    fazz(test_var.szkodnik);
 
     i: int;
     h: int = 420;
@@ -31,6 +35,7 @@ fn foo(float a,int b,int c) -> void {
     while ( a+a > a ) {
         x: int;
         x > c;
+        return &a;
     }
     if( g > g ) {
         c: int;
@@ -39,7 +44,7 @@ fn foo(float a,int b,int c) -> void {
     }
     i + b;
     if ( b > b ) {
-        return b + i;
+        return &a;
     }
     {
         a: int;
@@ -47,6 +52,9 @@ fn foo(float a,int b,int c) -> void {
     }
 }
 fn void_func() {
-
+    void_func();
 }
 
+EOF
+&(!(a == a));
+a = &v[b][b];
