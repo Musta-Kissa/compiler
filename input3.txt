@@ -1,5 +1,23 @@
 struct Kot {
     kolor: *float;
+    lives: int;
+}
+fn foo([]int arr) {
+
+}
+fn main(int argc, **char argv) -> int {
+    szkodnik:Kot;
+    szkodnik.lives = 1*9;
+    v: [10][1]float;
+    {
+        v:int;
+        example_int:int = argc/3+10*7;
+    {
+    }
+        if( argc > 1 ) {
+            argc = 13;
+        }
+    }
 }
 
 struct Test {
@@ -10,7 +28,6 @@ struct Test {
 
 globalint:int= 3+10*7;
 
-
 fn bar([][]float bbb) -> int {
     return 3;
 }
@@ -19,7 +36,8 @@ fn fazz([]Kot koty) {
     return;
 }
 
-fn foo(float a,int b,int c) -> *float {
+fn fooz(float a,int b,int c) -> *float {
+    string: *char= "hello sailor";
     z:*float = &a;
     v: [10][1]float;
     f: = bar(v);
@@ -56,5 +74,16 @@ fn void_func() {
 }
 
 EOF
+fn main(int argc, **char argv) -> int {
+
+}
+
 &(!(a == a));
 a = &v[b][b];
+// treat any dimentional arr as just a ptr and treat a ptr as a ptr
+// [][]float bbb -> float bbb[]   OR float* bbb
+// [][]*float bbb -> float* bbb[] OR float** bbb
+// *[][]float bbb ->              OR float**
+fn bar([][]float bbb) -> int {
+    return 3;
+}

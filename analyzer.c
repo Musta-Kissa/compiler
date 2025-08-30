@@ -24,6 +24,8 @@ Type* CURR_RETURN_TYPE;
 }
 
 Analyzer anlz;
+int get_type_err; // 0 - OK , -1 - NOT FOUND
+
 void Analyzer_init() {
     Analyzer analyzer;
         analyzer.declared_vars = Stack_new();
@@ -43,7 +45,6 @@ void Analyzer_append_type(Type type) {
     }
 }
 
-int get_type_err; // 0 - OK , -1 - NOT FOUND
 Type Analyzer_get_type(char* type_name,int* err) {
     for( int i = 0 ; i < anlz.types_idx ; i++ ) {
         char* curr = anlz.types[i].type_name;
@@ -285,7 +286,17 @@ void analyze_if(AstExpr* stm) {
     if( anlz.declared_vars.frames_idx <= 1 ) {
         PANIC("'if' statement in global scope");
     }
-    analyze_statements(stm->if_statement.condition);
+    ASSERT( (stm->if_statement.condition->type == AST_EXPRESSION_STATEMENT), "Expression statement expected as IF condition");
+    Type condition_type = analyze_expr_statement(stm->if_statement.condition);
+    if(condition_type.type_kind != BOOL_TYPE ){
+        StringBuilder expr_sb = sb_new();
+        print_expr_to_sb(&expr_sb,stm->if_statement.condition->expression_statement.value);
+
+        StringBuilder condition_type_sb = sb_new();
+         Type_build_type_string(&condition_type_sb,&condition_type);
+        PANIC("Expression statement has to evaluate to BOOL_TYPE, got: {%s} '%s'",condition_type_sb.buffer,expr_sb.buffer);
+    }
+
     analyze_statements(stm->if_statement.body);
 }
 Type analyze_func_call(AstExpr* stm) {
@@ -358,7 +369,10 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
         case AST_FUNC_CALL:
             return analyze_func_call(stm); 
         case AST_STRING:
-            return PRIMITIVE_TYPES[STRING_TYPE_IDX];
+            Type ptr_type = Type_new(NULL,POINTER_TYPE);
+            ptr_type.pointer_type.sub_type = (Type*)malloc(sizeof(Type));
+            *ptr_type.pointer_type.sub_type = PRIMITIVE_TYPES[CHAR_TYPE_IDX];
+            return ptr_type;
     }
     if( stm->type == AST_UNARY_OPERATION ) {
         Type type = analyze_expr_statement_inner(stm->unary_operation.right);
@@ -563,6 +577,9 @@ void analyze_return(AstExpr* stm) {
 }
 void analyze_struct_decl(AstExpr* stm) {
     char* struct_name = stm->struct_declaration.name;
+    if( anlz.declared_vars.frames_idx > 1 ) {
+        PANIC("Struct Declaration not in global scope: %s",struct_name);
+    }
 
     Type t = Analyzer_get_type(struct_name,&get_type_err);
     if( get_type_err == 0 ) { // Type found 

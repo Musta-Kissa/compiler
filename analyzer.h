@@ -27,6 +27,11 @@ typedef struct Analyzer {
     int   types_idx;
 } Analyzer;
 
+
+void Analyzer_init();
+void Analyzer_append_type(Type type);
+Type Analyzer_get_type(char* type_name,int* err);
+
 Stack Stack_new();
 void Stack_new_frame(Stack* stk);
 void Stack_pop_frame(Stack* stk);
@@ -40,6 +45,7 @@ void analyze_func_call_args(AstExpr* stm);
 int type_is_impl(const char* type, ...);
 Type create_type_from_ast_node(AstExpr* node); // Depricated
 int analyze_type(Type* type);
+const char* format_ast_type(AstExpr* stm);
 
 #define type_is(...) type_is_impl(__VA_ARGS__,NULL)
 

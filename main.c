@@ -6,6 +6,7 @@
 #include "my_string.h"
 #include "parser.h"
 #include "analyzer.h"
+#include "backend.h"
 
 #define PANIC(fmt, ...) { \
     printf(fmt "\n", ##__VA_ARGS__); \
@@ -38,8 +39,14 @@ int main(int argc, char* argv[]) {
     */
 
     AstExpr* program = parse_program(&lexer);
+
     print_program_ast(program);
 
     analyze_program_ast(program);
-
+    
+    /*
+    const char* output = generate_output(program);
+    printf("Output:\n%s",output);
+    compile_string(output);
+    */
 }
