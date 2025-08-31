@@ -435,6 +435,7 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
                 if( !Type_cmp(&left_type,&right_type) ) {
                     PANIC("Tried to %s {%s} and {%s} witch are not the same type",format_enum(stm->binary_operation.opp_token),left_type.type_name,right_type.type_name);
                 }
+                stm->binary_operation.type = left_type;
                 return left_type;
 
             // same type return bool
@@ -456,6 +457,7 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
                      Type_build_type_string(&right_type_sb,&right_type);
                     PANIC("Tried to %s {%s} and {%s} witch are not the same type %s",format_enum(stm->binary_operation.opp_token),left_type_sb.buffer,right_type_sb.buffer,expr_sb.buffer);
                 }
+                stm->binary_operation.type = Type_new(NULL,BOOL_TYPE);
                 return Type_new(NULL,BOOL_TYPE);
 
             // same type and return VOID type
@@ -473,6 +475,7 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
                      Type_build_type_string(&right_type_sb,&right_type);
                     PANIC("Tried to ASSIGN {%s} to {%s} %s", right_type_sb.buffer, left_type_sb.buffer, expr_sb.buffer);
                 }
+                stm->binary_operation.type = PRIMITIVE_TYPES[VOID_TYPE_IDX];
                 return PRIMITIVE_TYPES[VOID_TYPE_IDX];
 
 
@@ -483,7 +486,7 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
             // left side can be any type but a STRUCT_TYPE is the only valid type
             case DOT: 
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
-                if( left_type.type_kind != STRUCT_TYPE ) {
+                if( left_type.type_kind != STRUCT_TYPE && left_type.type_kind != ARRAY_TYPE) {
                     StringBuilder expr_sb = sb_new();
                      print_expr_to_sb(&expr_sb,stm);
 
@@ -497,11 +500,21 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
                     ASSERT( (field_name_identifier->type == AST_IDENTIFIER), "Only an identifier can be a field name", "");
                 char* field_name = field_name_identifier->identifier.token.value;
 
+                if( left_type.type_kind == ARRAY_TYPE ) {
+                    if( strcmp(field_name,"length") != 0 ) {
+                        PANIC("Unknown array atribute %s",field_name);
+                    }
+                }
+
                 Type field_type = Type_get_field_type(left_type,field_name);
+                stm->binary_operation.type = field_type;
                 return field_type;
             // right side has to be an intiger
             case SUBSCRIPT_OPEN: 
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
+                //if( left_type.array_type.sub_type->type_kind == ARRAY_TYPE ) {
+                    //PANIC("Multidimentional arrays not supported");
+                //}
                 if( left_type.type_kind != ARRAY_TYPE ) {
                     StringBuilder expr_sb = sb_new();
                      print_expr_to_sb(&expr_sb,stm);
@@ -521,6 +534,7 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
 
                     PANIC("Tried to index An array of {%s} with {%s} only intigers allowed %s", left_type_sb.buffer, right_type_sb.buffer,expr_sb.buffer);
                 }
+                stm->binary_operation.type = *left_type.array_type.sub_type;
                 return *left_type.array_type.sub_type;
 
             default:
@@ -676,9 +690,17 @@ void analyze_program_ast(AstExpr* ast) {
 // 0 - OK, 1 - arr len not specified
 int analyze_type(Type* type) {
     int err = 0;
+    int is_arr = 0;
     while( type->type_kind != UNKNOWN_TYPE ) {
         switch( type->type_kind ) {
             case ARRAY_TYPE:
+                if( type->type_kind == ARRAY_TYPE ) {
+                    if(is_arr) {
+                        PANIC("Multidimentional arrays not supported");
+                    }
+                    is_arr = true;
+                }
+
                 if( type->array_type.length == 0 ) {
                     err = 1;
                 }

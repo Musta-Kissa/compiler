@@ -35,11 +35,13 @@ typedef struct AstExpr {
     Ast_ExprType type;            
     union {
         struct BinaryOperation {
+            Type type;
             Token opp_token;        
             struct AstExpr* left; 
             struct AstExpr* right; 
         } binary_operation;
         struct UnaryOperation {
+            //Type* type;
             Token opp_token;        
             struct AstExpr* right; 
         } unary_operation; // TODO implement unary in parser

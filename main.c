@@ -22,6 +22,10 @@ int main(int argc, char* argv[]) {
     //printf("source: \n%s",source.data);
     //printf("============= end source ===============\n\n");
 
+    printf("sizeof(Tyep) = %d\n",sizeof(Type));
+    printf("sizeof(Ast) = %d\n",sizeof(AstExpr));
+
+
     Lexer lexer = lex_file(source);
 
     for( int n = 0; lexer.tokens[n-1].kind != EOF_TOKEN ; n++) {
@@ -44,9 +48,9 @@ int main(int argc, char* argv[]) {
 
     analyze_program_ast(program);
     
-    /*
     const char* output = generate_output(program);
     printf("Output:\n%s",output);
     compile_string(output);
+    /*
     */
 }

@@ -102,7 +102,7 @@ void print_expr(AstExpr* expr) {
             case ASSIGN:
                 printf("="); break;
             default: 
-                PANIC("Oparation printing not supported");
+                PANIC("Oparation printing not supported: %s %s",format_enum(expr->binary_operation.opp_token),expr->binary_operation.opp_token.value);
         }
         printf(" "); 
         print_expr(expr->binary_operation.left);

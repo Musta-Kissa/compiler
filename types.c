@@ -21,6 +21,9 @@ Type Type_new(char* type_name, TypeKind type_kind) {
     return (Type){ .type_name=type_name,.type_kind=type_kind };
 }
 Type Type_get_field_type(Type type,char* field_name) {
+    if( strcmp(field_name, "length") == 0 ) {
+        return Type_new("int",PRIMITIVE_TYPE);
+    }
     ASSERT( (type.type_kind == STRUCT_TYPE), "Expected STRUCT_TYPE");
 
     FieldListNode* curr = type.struct_type.fields;

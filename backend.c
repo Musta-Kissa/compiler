@@ -37,7 +37,11 @@ void generate_type(StringBuilder* sb, Type* type) {
             sb_append(sb,"*");
             break;
         case ARRAY_TYPE:
-            PANIC("%s %d:Arrays not supported",__FILE__,__LINE__);
+            //generate_type(sb,type->array_type.sub_type);
+            //sb_append(sb,"__%s"); 
+            sb_append(sb,"__Array ");
+            break;
+            //PANIC("%s %d:Arrays not supported",__FILE__,__LINE__);
             //sb_append(sb,"Intrinsics_Array");
 
         case NUMBER_TYPE:
@@ -91,9 +95,25 @@ void generate_func_decl(StringBuilder* sb, AstExpr* stm) {
     generate_arg_decl(sb,stm->function_declaration.args);
     generate_block_statement(sb,stm->function_declaration.body);
 }
+void generate_func_call(StringBuilder* sb, AstExpr* stm) {
+    sb_append(sb,stm->func_call.identifier.value);
+    sb_append(sb,"(");
+    AstExpr* curr_arg = stm->func_call.args;
+    if( curr_arg != NULL) {
+        while(1) {
+            generate_expr_statement(sb,curr_arg->argument.value);
+            curr_arg = curr_arg->argument.next;
+            if( curr_arg == NULL) {
+                break;
+            }
+            sb_append(sb,",");
+        }
+    }
+    sb_append(sb,")");
+}
 void generate_expr(StringBuilder* sb, AstExpr* stm) {
     switch( stm->type ) {
-        char* operator;
+        char* operator = "";
         case AST_UNARY_OPERATION:
             switch( stm->unary_operation.opp_token.kind ) {
                 case NOT:           operator = "!"; break;
@@ -122,17 +142,32 @@ void generate_expr(StringBuilder* sb, AstExpr* stm) {
                 case MORE_EQUAL:        operator = ">=";break;
                 case ASSIGN:            operator = "=";break;
                 case DOT:               operator = ".";break;
-                case SUBSCRIPT_OPEN:    operator = "[";break;
+                //case SUBSCRIPT_OPEN:    operator = "[";break;
+                case SUBSCRIPT_OPEN:    operator = ")["; break;
+                    
                 default:
                     PANIC("");
             }
             sb_append(sb,"(");
+            if(  stm->binary_operation.opp_token.kind == SUBSCRIPT_OPEN) {
+                sb_append(sb,"((");
+                generate_type(sb,&stm->binary_operation.type);
+                sb_append(sb,"*");
+                sb_append(sb,")");
+            }
             generate_expr(sb,stm->binary_operation.left);
+
+            if(  stm->binary_operation.opp_token.kind == SUBSCRIPT_OPEN) {
+                sb_append(sb,".data");
+            }
+
             sb_append(sb," ");
             sb_append(sb,operator);
             sb_append(sb," ");
             generate_expr(sb,stm->binary_operation.right);
-            if( operator == "[" ) sb_append(sb,"]");
+            if(  stm->binary_operation.opp_token.kind == SUBSCRIPT_OPEN) {
+                sb_append(sb,"]");
+            }
             sb_append(sb,")");
             break;
         case AST_IDENTIFIER:
@@ -144,6 +179,8 @@ void generate_expr(StringBuilder* sb, AstExpr* stm) {
         case AST_STRING:
             sb_append(sb,"\"%s\"",stm->identifier.token.value);
             return;
+        case AST_FUNC_CALL:
+            return generate_func_call(sb,stm); 
     }
 }
 void generate_expr_statement(StringBuilder* sb, AstExpr* stm) {
@@ -154,20 +191,31 @@ void generate_expr_statement(StringBuilder* sb, AstExpr* stm) {
 
 void generate_decl(StringBuilder* sb, AstExpr* stm) {
     PADDING();
-    generate_type(sb,stm->declaration.type);
-    sb_append(sb," %s",stm->declaration.name);
-    if( stm->declaration.value->expression_statement.value != NULL ) {
-        sb_append(sb," = ");
-        generate_expr_statement(sb,stm->declaration.value);
+    if( stm->declaration.type->type_kind == ARRAY_TYPE ) {
+        generate_type(sb,stm->declaration.type->array_type.sub_type);
+        sb_append(sb," __%s[%d]; __Array %s = (__Array){.data=__%s,.length=%d}",
+                  stm->declaration.name,
+                  stm->declaration.type->array_type.length,
+                  stm->declaration.name,
+                  stm->declaration.name,
+                  stm->declaration.type->array_type.length
+                  );
+    } else {
+        generate_type(sb,stm->declaration.type);
+        sb_append(sb," %s",stm->declaration.name);
+        if( stm->declaration.value->expression_statement.value != NULL ) {
+            sb_append(sb," = ");
+            generate_expr_statement(sb,stm->declaration.value);
+        }
     }
     sb_append(sb,";\n");
 }
 
 void generate_if(StringBuilder* sb, AstExpr* stm) {
     PADDING();
-    sb_append(sb,"if( ");
+    sb_append(sb,"if ");
     generate_expr_statement(sb,stm->if_statement.condition);
-    sb_append(sb,") ");
+    sb_append(sb," ");
     generate_block_statement(sb,stm->if_statement.body); 
 }
 void generate_struct_decl(StringBuilder* sb, AstExpr* stm) {
@@ -233,6 +281,17 @@ void generate_statements(StringBuilder* sb, AstExpr* stm) {
 
 char* generate_output(AstExpr* node) {
     StringBuilder output_sb = sb_new();
+    const char *header = 
+        "#include <stdio.h>\n"
+        "#include <stdlib.h>\n"
+        "typedef struct {\n"
+        "   void* data;\n"
+        "   int length;\n"
+        "} __Array;\n"
+        "// ===================== end of HEADER =================================\n"
+    ;
+
+    sb_append(&output_sb,header);
     CURR_DEPTH = -1;
     generate_statements(&output_sb,node);
 

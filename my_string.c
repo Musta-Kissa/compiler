@@ -161,7 +161,7 @@ void print_expr_to_sb(StringBuilder* sb,AstExpr* expr) {
             case ASSIGN:
                 sb_append(sb,"="); break;
             default: 
-                PANIC("Oparation printing not supported");
+                PANIC("%s %d:Oparation printing not supported",__FILE__,__LINE__);
         }
         sb_append(sb," "); 
         print_expr_to_sb(sb,expr->binary_operation.left);
