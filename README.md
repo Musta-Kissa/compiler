@@ -1,3 +1,9 @@
+## Description
+**This compiler is still WIP!!!**
+
+Its a strongly staticly typed language that works simmilar to C, the syntax is inspired by Jai/Odin.
+The backend compiles the language to C and then compiles the C to an executable.
+
 ## Example 
 ``` c
 extern {
