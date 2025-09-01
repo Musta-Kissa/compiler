@@ -1,0 +1,7 @@
+#!/bin/bash
+gcc *.c \
+    -g \
+    -Wunused-but-set-variable \
+    -Wreturn-type \
+    -Wno-discarded-qualifiers \
+    && ./a.out
