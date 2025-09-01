@@ -23,6 +23,7 @@ typedef enum {
     AST_BLOCK_STATEMENT,
 
     AST_STRUCT_DECLARATION,
+    AST_EXTERN_STATEMENT,
 } Ast_ExprType;
 
 typedef struct TypeInfo {
@@ -65,6 +66,7 @@ typedef struct AstExpr {
             Token token;   
         } string;     
         struct Identifier {
+            Type type;
             Token token;
         } identifier;
         struct Declaretion {
@@ -107,6 +109,7 @@ typedef struct AstExpr {
             struct AstExpr* next; // Can be NULL
         } block_statement;
         struct ExpressionStatement {
+            Type type;
             struct AstExpr* value; // Can be NULL
             struct AstExpr* next; // Can be NULL
         } expression_statement;
@@ -115,6 +118,10 @@ typedef struct AstExpr {
             struct AstExpr* body; // BlockStatment
             struct AstExpr* next; // Can be NULL
         } struct_declaration;
+        struct ExternStatement {
+            struct AstExpr* body; // BlockStatment / declaration / fn_declaration in global scope
+            struct AstExpr* next; // Can be NULL
+        } extern_statement;
     };
 } AstExpr;
 

@@ -60,14 +60,15 @@ const char* format_enum(Token k) {
         case MINUS_MINUS:           return "MINUS_MINUS";
 
         case FN:                    return "FN";
+        case EXTERN:                return "EXTERN";
         case ARROW:                 return "ARROW";
         default:                    PANIC("UNHANDLED TOKEN TYPE");
     }
 }
 
 int get_keyword(char* buff,Token* t) {
-    const char*     keywords[]      = {"union","enum","struct","if","else","for","while","return","fn","EOF"};
-    const TokenKind keyword_kinds[] = { UNION , ENUM , STRUCT , IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
+    const char*     keywords[]      = {"extern","union","enum","struct","if","else","for","while","return","fn","EOF"};
+    const TokenKind keyword_kinds[] = { EXTERN , UNION , ENUM , STRUCT , IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
     const int len = sizeof(keywords) / sizeof(keywords[0]);
 
     for ( int i = 0; i < len; i++) {

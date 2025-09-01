@@ -31,6 +31,7 @@ typedef enum TokenKind {
     UNION,
 
     FN,
+    EXTERN,
     ARROW,
 
     ASSIGN,

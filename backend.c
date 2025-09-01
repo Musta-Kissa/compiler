@@ -12,6 +12,7 @@
 }
 #define PANIC(fmt, ...) { \
     printf(fmt "\n", ##__VA_ARGS__); \
+    *(int*)0=0;\
     exit(-1); \
 }
 
@@ -49,6 +50,7 @@ void generate_type(StringBuilder* sb, Type* type) {
             PANIC("%s %d:PANICKED",__FILE__,__LINE__);
         case FUNCTION_TYPE:
         case UNKNOWN_TYPE:
+        default:
             sb_append(sb,type->type_name);
             break;
             PANIC("%s %d:PANICKED",__FILE__,__LINE__);
@@ -121,6 +123,7 @@ void generate_expr(StringBuilder* sb, AstExpr* stm) {
                 case PLUS_PLUS:     operator = "++"; break;
                 case MINUS_MINUS:   operator = "--"; break;
                 case AMPERSAND:     operator = "&"; break;
+                case STAR:          operator = "*"; break;
                 default: 
                     PANIC("%s %d: Panicked",__FILE__,__LINE__);
             }
@@ -128,6 +131,7 @@ void generate_expr(StringBuilder* sb, AstExpr* stm) {
             sb_append(sb,"(");
             generate_expr(sb,stm->unary_operation.right);
             sb_append(sb,")");
+            break;
         case AST_BINARY_OPERATION:
             switch( stm->binary_operation.opp_token.kind ) {
                 case STAR:              operator = "*"; break;
@@ -146,7 +150,7 @@ void generate_expr(StringBuilder* sb, AstExpr* stm) {
                 case SUBSCRIPT_OPEN:    operator = ")["; break;
                     
                 default:
-                    PANIC("");
+                    PANIC("%s %d:PANICKED",__FILE__,__LINE__);
             }
             sb_append(sb,"(");
             if(  stm->binary_operation.opp_token.kind == SUBSCRIPT_OPEN) {
@@ -177,10 +181,12 @@ void generate_expr(StringBuilder* sb, AstExpr* stm) {
             sb_append(sb,stm->number.token.value);
             return;
         case AST_STRING:
-            sb_append(sb,"\"%s\"",stm->identifier.token.value);
+            sb_append(sb,"\"%s\"",stm->string.token.value);
             return;
         case AST_FUNC_CALL:
             return generate_func_call(sb,stm); 
+        default:
+            PANIC("%s %d:PANICKED",__FILE__,__LINE__);
     }
 }
 void generate_expr_statement(StringBuilder* sb, AstExpr* stm) {
@@ -193,13 +199,32 @@ void generate_decl(StringBuilder* sb, AstExpr* stm) {
     PADDING();
     if( stm->declaration.type->type_kind == ARRAY_TYPE ) {
         generate_type(sb,stm->declaration.type->array_type.sub_type);
-        sb_append(sb," __%s[%d]; __Array %s = (__Array){.data=__%s,.length=%d}",
-                  stm->declaration.name,
-                  stm->declaration.type->array_type.length,
-                  stm->declaration.name,
-                  stm->declaration.name,
-                  stm->declaration.type->array_type.length
-                  );
+        if( stm->declaration.type->array_type.length == -1 ) {
+            // if len not specified there has to be an expr
+            int len = stm->declaration.value->expression_statement.type.array_type.length;
+
+            sb_append(sb," __%s[%d]; __Array %s = (__Array){.data=__%s,.length=%d}",
+                      stm->declaration.name,
+                      len,
+                      stm->declaration.name,
+                      stm->declaration.name,
+                      len
+                      );
+            sb_append(sb,"; %s = ",stm->declaration.name);
+            generate_expr_statement(sb,stm->declaration.value);
+        } else {
+            sb_append(sb," __%s[%d]; __Array %s = (__Array){.data=__%s,.length=%d}",
+                      stm->declaration.name,
+                      stm->declaration.type->array_type.length,
+                      stm->declaration.name,
+                      stm->declaration.name,
+                      stm->declaration.type->array_type.length
+                      );
+            if( stm->declaration.value->expression_statement.value != NULL ) {
+                sb_append(sb,"; %s = ",stm->declaration.name);
+                generate_expr_statement(sb,stm->declaration.value);
+            }
+        }
     } else {
         generate_type(sb,stm->declaration.type);
         sb_append(sb," %s",stm->declaration.name);
@@ -257,6 +282,10 @@ void generate_statements(StringBuilder* sb, AstExpr* stm) {
                 generate_struct_decl(sb,next);
                 next = next->struct_declaration.next;
                 break;
+            case AST_EXTERN_STATEMENT:    
+                // dont generate code for extern stm
+                next = next->extern_statement.next;
+                break;
             /*
             case AST_FOR_STATEMENT:
                 analyze_for(next); 
@@ -312,7 +341,7 @@ int compile_string(char* source) {
     fclose(file);
 
     // Compile the temporary file
-    int compile_status = system("cd ./out; gcc out.c -o out");
+    int compile_status = system("cd ./out; gcc -g out.c -o out");
     if (compile_status != 0) {
         PANIC("Compilation failed\n");
         return 1;

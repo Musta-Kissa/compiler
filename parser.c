@@ -15,6 +15,7 @@
     printf(fmt "\n", ##__VA_ARGS__); \
     exit(-1); \
 }
+    //*(int*)0=0; 
 #define ASSERT(expr, fmt, ...) { \
     if (!expr) { \
         printf(fmt "\n", ##__VA_ARGS__); \
@@ -63,7 +64,7 @@ int get_binding_power(Token opp) {
 
         case PLUS:              return 3;
         case MINUS:             return 3;
-        case STAR:              return 4;
+        case STAR:              return 4; // posible problem when dereferencing
         case DIVITION:          return 4;
 
         case PLUS_PLUS:         return 5;
@@ -87,6 +88,7 @@ int is_unary(Token k) {
         case PLUS_PLUS:
         case MINUS_MINUS:
         case AMPERSAND:
+        case STAR:
             return 1;
         default: 
             return 0;
@@ -227,7 +229,7 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
         if( left == NULL ) {
             return Ast_make_unary(next, right);
         } else {
-            ASSERT( (!is_unary(next) || next.kind == MINUS ), "%s %d: attempted to add unary opp to binary node: (%s)",__FILE__,__LINE__,format_enum(next));
+            ASSERT( (!is_unary(next) || next.kind == MINUS || next.kind == STAR), "%s %d: attempted to add unary opp to binary node: (%s)",__FILE__,__LINE__,format_enum(next));
             return AST_make_binary(left,next,right);
         }
     }
@@ -463,7 +465,13 @@ AstExpr* parse_struct_decl(Lexer* lexer) {
         node->struct_declaration.body = parse_block_statement(lexer);
     return node;
 }
-
+AstExpr* parse_extern_statement(Lexer* lexer) {
+    Lexer_next(lexer); // Consume EXTERN
+    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+        node->type = AST_EXTERN_STATEMENT;
+        node->extern_statement.body = parse_statement(lexer);
+    return node;
+}
 AstExpr* parse_statement(Lexer* lexer) {
     Token next = Lexer_peek(lexer);
     if( next.kind == EOF_TOKEN || next.kind == CLOSE_CURRLY_PARENT) // The caller must consume the CLOSE_CURRLY_PARENT
@@ -500,6 +508,10 @@ AstExpr* parse_statement(Lexer* lexer) {
         case FN:
             node = parse_func_decl(lexer);
             node->function_declaration.next = NULL;
+            return node;
+        case EXTERN:
+            node = parse_extern_statement(lexer);
+            node->extern_statement.next = NULL;
             return node;
         case STRUCT:
             node = parse_struct_decl(lexer);
@@ -555,6 +567,10 @@ AstExpr* parse_statements(Lexer* lexer) {
             node = parse_func_decl(lexer);
             node->function_declaration.next = parse_statements(lexer);
             return node;
+        case EXTERN:
+            node = parse_extern_statement(lexer);
+            node->extern_statement.next = parse_statements(lexer);
+            return node;
         case STRUCT:
             node = parse_struct_decl(lexer);
             node->struct_declaration.next = parse_statements(lexer);
@@ -597,7 +613,7 @@ Type* parse_type(Lexer* lexer) {
         case SUBSCRIPT_OPEN: 
             type->type_kind = ARRAY_TYPE;
             type->type_name = NULL;
-            type->array_type.length = 0;
+            type->array_type.length = -1;
             
             if( Lexer_peek(lexer).kind == NUMBER ) {
                 char* num_str = Lexer_next(lexer).value;

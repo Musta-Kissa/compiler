@@ -59,7 +59,7 @@ char* format_type(Type type) {
         case FUNCTION_TYPE:     return "FUNCTION_TYPE";
     }
 }
-// 0 = NOT THE SAME, 1 = THE SAME
+// 0 = NOT THE SAME, 1 = THE SAME, 2 ARR_DIFFRENT_LENGTH, 3 ARR_DIFFRENT_LENGTH_LEFT_NOT_SPECIFIED
 int Type_cmp(Type* type1, Type* type2) {
     if( type1->type_kind != type2->type_kind ) {
         return 0;
@@ -78,6 +78,16 @@ int Type_cmp(Type* type1, Type* type2) {
         case POINTER_TYPE:
             return Type_cmp(type1->pointer_type.sub_type,type2->pointer_type.sub_type);
         case ARRAY_TYPE:
+            //if(type2->array_type.length == -1) {
+                //return 0;
+            //}
+            if(type1->array_type.length != type2->array_type.length) {
+                if(type1->array_type.length == -1 ) {
+                    return 3;
+                } else {
+                    return 2;
+                }
+            }
             return Type_cmp(type1->array_type.sub_type,type2->array_type.sub_type);
         case FUNCTION_TYPE:
             PANIC("Function types comparison is not implemented");
@@ -103,7 +113,11 @@ void Type_build_type_string(StringBuilder* sb, Type* type ){
             Type_build_type_string(sb,type->pointer_type.sub_type);
             return;
         case ARRAY_TYPE:
-            sb_append(sb,"[]");
+            if(type->array_type.length == -1 ) {
+                sb_append(sb,"[]");
+            } else {
+                sb_append(sb,"[%d]",type->array_type.length);
+            }
             Type_build_type_string(sb,type->pointer_type.sub_type);
             return;
         case FUNCTION_TYPE:

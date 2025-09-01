@@ -249,19 +249,23 @@ void analyze_decl(AstExpr* stm) {
         }
             // banana := 5;
         expr_type = analyze_expr_statement(stm->declaration.value);
+
     } else {
         int err = analyze_type(stm->declaration.type);
-        ASSERT( (err == 0), "Array lenght has to be specified at var declaration '%s'",var_ident);
 
         decl_var_type = *stm->declaration.type;
 
         if( stm->declaration.value->expression_statement.value == NULL ) {
+            // 0 == ok, 1== arr len not specified
+            ASSERT( (err == 0 ), "Array lenght has to be specified at var declaration if an expression is not provided '%s'",var_ident);
             // banana :int ;
             expr_type = decl_var_type;
         } else {
             // banana :int = "HELLO";
             expr_type = analyze_expr_statement(stm->declaration.value);
-            if( !Type_cmp(&expr_type,&decl_var_type) ) {
+            // allowed 1,3
+            int type_cmp_err = Type_cmp(&decl_var_type,&expr_type);
+            if( type_cmp_err != 1 && type_cmp_err != 3) {
                 StringBuilder expr_sb = sb_new();
                  print_expr_to_sb(&expr_sb,stm->declaration.value->expression_statement.value);
 
@@ -278,6 +282,16 @@ void analyze_decl(AstExpr* stm) {
             }
         }
     }
+    /*
+    StringBuilder decl_type_sb = sb_new();
+     Type_build_type_string(&decl_type_sb,&decl_var_type);
+    StringBuilder expr_type_sb = sb_new();
+     Type_build_type_string(&expr_type_sb,&expr_type);
+    printf("ANALYZER: %s : %s = %s\n",var_ident,decl_type_sb.buffer,expr_type_sb.buffer);
+    */
+
+    stm->declaration.type = (Type*)malloc(sizeof(Type));
+    *stm->declaration.type = expr_type;
 
     Variable var = Variable_new(expr_type,var_ident);
     Stack_append(&anlz.declared_vars,var);
@@ -322,8 +336,8 @@ Type analyze_func_call(AstExpr* stm) {
             PANIC("In call to function '%s' expected %d argument/s got additianal argument of type {%s}",var.ident,arg_counter,arg_type.type_name);
         }
         Type arg_decl_type = curr_arg_decl->type;
-
-        if( !Type_cmp(&arg_type,&arg_decl_type)) {
+        int type_cmp_err =Type_cmp(&arg_decl_type,&arg_type);
+        if( type_cmp_err != 1 && type_cmp_err != 3) {
             StringBuilder expr_sb = sb_new();
             print_expr_to_sb(&expr_sb,curr_arg->argument.value->expression_statement.value);
 
@@ -349,6 +363,7 @@ Type analyze_func_call(AstExpr* stm) {
 // returns the type of the analyzed expr
 Type analyze_expr_statement(AstExpr* stm) {
     Type type = analyze_expr_statement_inner(stm->expression_statement.value);
+    stm->expression_statement.type = type;
     //stm->expression_statement.type_name = type.type_name;
     return type;
 }
@@ -364,6 +379,7 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
                 PANIC("Use of undeclered var: %s",ident);
             } else {
                 Variable var = Stack_get(&anlz.declared_vars, ident);
+                stm->identifier.type = var.type;
                 return var.type;
             }
         case AST_FUNC_CALL:
@@ -389,17 +405,17 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
                 return Type_new(NULL,BOOL_TYPE);
             case MINUS:
                 if( !Type_cmp(&type,&PRIMITIVE_TYPES[INT_TYPE_IDX]) && !Type_cmp(&type,&PRIMITIVE_TYPES[FLOAT_TYPE_IDX]) ) {
-                    PANIC("attemted to MINUS a type (%s) thats not a bool",type.type_name);
+                    PANIC("attemted to MINUS a type (%s) thats not a number",type.type_name);
                 }
                 return Type_new(NULL,NUMBER_TYPE);
             case PLUS_PLUS:
                 if( !Type_cmp(&type,&PRIMITIVE_TYPES[INT_TYPE_IDX]) && !Type_cmp(&type,&PRIMITIVE_TYPES[FLOAT_TYPE_IDX]) ) {
-                    PANIC("attemted to PLUS_PLUS a type (%s) thats not a bool",type.type_name);
+                    PANIC("attemted to PLUS_PLUS a type (%s) thats not a number",type.type_name);
                 }
                 return Type_new(NULL,NUMBER_TYPE);
             case MINUS_MINUS:
                 if( !Type_cmp(&type,&PRIMITIVE_TYPES[INT_TYPE_IDX]) && !Type_cmp(&type,&PRIMITIVE_TYPES[FLOAT_TYPE_IDX]) ) {
-                    PANIC("attemted to MINUS_MINUS a type (%s) thats not a bool",type.type_name);
+                    PANIC("attemted to MINUS_MINUS a type (%s) thats not a number",type.type_name);
                 }
                 return Type_new(NULL,NUMBER_TYPE);
             case AMPERSAND:
@@ -415,6 +431,17 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
                 ptr_type.pointer_type.sub_type = (Type*)malloc(sizeof(Type));
                 *ptr_type.pointer_type.sub_type = type;
                 return ptr_type;
+            case STAR:
+                if( type.type_kind != POINTER_TYPE ) {
+                    StringBuilder expr_sb = sb_new();
+                     print_expr_to_sb(&expr_sb,stm);
+
+                    StringBuilder type_sb = sb_new();
+                     Type_build_type_string(&type_sb,&type);
+                    PANIC("attempted to dereference a {%s} type thats not a pointer %s",type_sb.buffer,expr_sb.buffer);
+                }
+                Type derefed_type = *type.pointer_type.sub_type;
+                return derefed_type;
             default: 
                 PANIC("%s %d: Panicked",__FILE__,__LINE__);
         }
@@ -432,7 +459,7 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
             case MINUS:
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
                 right_type = analyze_expr_statement_inner(stm->binary_operation.right);
-                if( !Type_cmp(&left_type,&right_type) ) {
+                if( Type_cmp(&left_type,&right_type) != 1) {
                     PANIC("Tried to %s {%s} and {%s} witch are not the same type",format_enum(stm->binary_operation.opp_token),left_type.type_name,right_type.type_name);
                 }
                 stm->binary_operation.type = left_type;
@@ -447,7 +474,7 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
             case MORE_EQUAL:
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
                 right_type = analyze_expr_statement_inner(stm->binary_operation.right);
-                if( !Type_cmp(&left_type,&right_type) ) {
+                if( Type_cmp(&left_type,&right_type) != 1) {
                     StringBuilder expr_sb = sb_new();
                      print_expr_to_sb(&expr_sb,stm);
 
@@ -465,7 +492,10 @@ Type analyze_expr_statement_inner(AstExpr* stm) {
             case ASSIGN:
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
                 right_type = analyze_expr_statement_inner(stm->binary_operation.right);
-                if( !Type_cmp(&left_type,&right_type) ) {
+                // allowed 1,3
+                int type_cmp_err = Type_cmp(&left_type,&right_type);
+                if( type_cmp_err != 1 && type_cmp_err != 3) {
+                //if( Type_cmp(&left_type,&right_type) != 1) {
                     StringBuilder expr_sb = sb_new();
                      print_expr_to_sb(&expr_sb,stm);
 
@@ -613,7 +643,6 @@ void analyze_struct_decl(AstExpr* stm) {
             ASSERT( ( curr_field->declaration.type != NULL ), "Type of the field must be specified in struct declaration");
             char* curr_field_name = curr_field->declaration.name;
 
-            //Type curr_field_type = create_type_from_ast_node(curr_field);
             int err = analyze_type(curr_field->declaration.type);
             ASSERT( (err == 0), "Array lenght has to be specified at struct field declaration '%s'",curr_field_name);
 
@@ -632,6 +661,25 @@ void analyze_struct_decl(AstExpr* stm) {
     }
 
     Analyzer_append_type(struct_type);
+}
+void analyze_extern_statement(AstExpr* stm) {
+    if( anlz.declared_vars.frames_idx > 1 ) {
+        PANIC("Extern statement not in global scope");
+    }
+    switch( stm->extern_statement.body->type ) {
+        //case AST_FUNCTION_DECLARATION:
+        //case AST_DECLARATION:
+            //analyze_statements(stm->extern_statement.body);
+            //break;
+        case AST_BLOCK_STATEMENT:
+            analyze_statements(stm->extern_statement.body->block_statement.statements);
+            break;
+        default:
+            analyze_statements(stm->extern_statement.body);
+            break;
+        //    PANIC("Expected Funcion declaration, ");
+
+    }
 }
 
 void analyze_statements(AstExpr* stm) {
@@ -674,6 +722,10 @@ void analyze_statements(AstExpr* stm) {
                 analyze_struct_decl(next);
                 next = next->struct_declaration.next;
                 break;
+            case AST_EXTERN_STATEMENT:    
+                analyze_extern_statement(next);
+                next = next->extern_statement.next;
+                break;
 
             default:
                 PANIC("NOT SUPPORTED: %s",format_ast_type(next));
@@ -687,31 +739,37 @@ void analyze_program_ast(AstExpr* ast) {
     printf("\e[0;32manalyzed ✓\e[0m\n"); 
 }
 
-// 0 - OK, 1 - arr len not specified
+// 0 - OK, 1 - arr len not specified, 2 - arr len not specified in depth
 int analyze_type(Type* type) {
     int err = 0;
-    int is_arr = 0;
+    int was_previous_type_arr = 0;
+    int depth = 0;
     while( type->type_kind != UNKNOWN_TYPE ) {
         switch( type->type_kind ) {
             case ARRAY_TYPE:
-                if( type->type_kind == ARRAY_TYPE ) {
-                    if(is_arr) {
-                        PANIC("Multidimentional arrays not supported");
+                if(was_previous_type_arr) {
+                    PANIC("Multidimentional arrays not supported");
+                }
+                was_previous_type_arr = true;
+
+                if( type->array_type.length == -1) {
+                    if( depth == 0) {
+                        err = 1;
+                    } else {
+                        err = 2;
                     }
-                    is_arr = true;
                 }
 
-                if( type->array_type.length == 0 ) {
-                    err = 1;
-                }
                 type = type->array_type.sub_type;
                 break;
             case POINTER_TYPE: 
+                was_previous_type_arr = false;
                 type = type->pointer_type.sub_type;
                 break;
             default:
                 PANIC("%s %d:PANICKED",__FILE__,__LINE__);
         }
+        depth++;
     }
     char* type_name = type->type_name;
     *type = Analyzer_get_type(type_name,&get_type_err); 

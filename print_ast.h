@@ -241,6 +241,11 @@ void print_statements(AstExpr* stm) {
                 print_struct_decl(next); 
                 next = next->struct_declaration.next;
                 break;
+            case AST_EXTERN_STATEMENT:
+                printf("EXTERN: ");
+                print_statements(next->extern_statement.body);
+                next = next->extern_statement.next;
+                break;
             default:
                 PANIC("NOT SUPPORTED");
         }
