@@ -1,3 +1,28 @@
+extern {
+    fn malloc(int i) -> *void {}
+    fn printf(*char string,int val) {}
+}
+
+fn main() {
+    "hello";
+    arr_1: [10]int;
+    arr_1[0] = 420;
+
+    arr_1_ptr:*[]int= &arr_1;
+
+    arr_2: [10]*[10]int;
+    arr_2[0] = arr_1_ptr;
+
+    abc: *[]*[]int = &arr_2;
+
+    arr_2_deref: []*[]int= *abc;
+
+    arr_2_elem: *[]int = arr_2_deref[0];
+
+    arr_1_deref:= *arr_2_elem;
+    printf("val:%d",arr_1_deref[0]);
+}
+EOF
 struct Kot {
     kolor: *float;
     lives: int;
@@ -11,10 +36,14 @@ fn foo([]int arr, int i) {
 }
 
 fn main(int argc, **char argv) -> int {
+    printf("hello world!\n");
+    void_ptr:*void = malloc(5);
     szkodnik:Kot;
     szkodnik.lives = 1*9;
     v: [10]int;
     v[1] = 3;
+    v_ptr: = &v;
+    b: []int = *v_ptr;
     foo(v,v.length-1);
     {
         v:int;
@@ -25,6 +54,20 @@ fn main(int argc, **char argv) -> int {
             argc = 13;
         }
     }
+    arr_1: [10]int;
+    arr_1[0] = 420;
+
+    arr_1_ptr:*[]int= &arr_1;
+
+    arr_2: [10]*[]int;
+    arr_2[1] = arr_1_ptr;
+
+    abc: *[]*[]int = &arr_2;
+    arr_2_deref: [10]*[]int= *abc;
+
+    arr_2_elem: *[10]int = arr_2_deref[0];
+
+    arr_1_deref:= *arr_2_elem;
 }
 
 EOF
