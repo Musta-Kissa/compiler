@@ -15,43 +15,43 @@
 }
 
 /*
-    AstExpr* parse_expr(Lexer* lexer, int curr_bp); Done
-    AstExpr* parse_arg_decl(Lexer* lexer); Done
-    AstExpr* parse_decl(Lexer* lexer);
-    AstExpr* parse_func_decl(Lexer* lexer,Token type,Token ident);
-    AstExpr* parse_program(Lexer* lexer);
-    AstExpr* parse_statements(Lexer* lexer);
-    AstExpr* parse_function_call(Lexer* lexer,Token ident);
-    AstExpr* parse_unary(Lexer* lexer, Token opp);
+    AstNode* parse_expr(Lexer* lexer, int curr_bp); Done
+    AstNode* parse_arg_decl(Lexer* lexer); Done
+    AstNode* parse_decl(Lexer* lexer);
+    AstNode* parse_func_decl(Lexer* lexer,Token type,Token ident);
+    AstNode* parse_program(Lexer* lexer);
+    AstNode* parse_statements(Lexer* lexer);
+    AstNode* parse_function_call(Lexer* lexer,Token ident);
+    AstNode* parse_unary(Lexer* lexer, Token opp);
 */
 
-void print_statements(AstExpr* stm);
-void print_expr(AstExpr* expr);
+void print_statements(AstNode* stm);
+void print_expr(AstNode* expr);
 
-void print_args(AstExpr* arg) {
+void print_args(AstNode* arg) {
     if( arg == NULL) {
         printf("\b\b");
         return;
     } 
-    print_expr(arg->argument.value);
+    print_expr(arg->argument.value->expression_statement.expression);
     printf(", ");
     print_args(arg->argument.next);
 }
 
-void print_expr(AstExpr* expr) {
+void print_expr(AstNode* expr) {
     if( expr == NULL) {
         printf("EMPTY EXPR");
         return;
     }
     switch(expr->type) {
         case AST_NUMBER:
-            printf("%s",expr->number.token.value);
+            printf("%s",expr->number.value);
             return;
         case AST_IDENTIFIER:
             printf("%s",expr->identifier.token.value);
             return;
         case AST_STRING:
-            printf("\"%s\"",expr->identifier.token.value);
+            printf("\"%s\"",expr->string.token.value);
             return;
     }
     if( expr->type == AST_UNARY_OPERATION ) {
@@ -111,16 +111,16 @@ void print_expr(AstExpr* expr) {
         printf(")");
     } 
     if( expr->type == AST_FUNC_CALL ) {
-        printf("<Fn %s>{",expr->func_call.identifier.value);
-        if( expr->func_call.args != NULL ){
-            print_args(expr->func_call.args);
+        printf("<Fn %s>{",expr->function_call.identifier.value);
+        if( expr->function_call.args != NULL ){
+            print_args(expr->function_call.args);
         }
         printf("}");
     }
 }
 
-void print_arg_decl(AstExpr* arg) {
-    AstExpr* next = arg;
+void print_arg_decl(AstNode* arg) {
+    AstNode* next = arg;
     StringBuilder sb = sb_new();
     while( next != NULL ) {
 
@@ -141,7 +141,7 @@ void print_arg_decl(AstExpr* arg) {
     }
 }
 
-void print_func_decl(AstExpr* node) {
+void print_func_decl(AstNode* node) {
     StringBuilder sb = sb_new();
     Type_build_type_string(&sb,node->function_declaration.return_type);
 
@@ -153,7 +153,7 @@ void print_func_decl(AstExpr* node) {
     printf("\n");
 }
 
-void print_decl(AstExpr* node) {
+void print_decl(AstNode* node) {
     StringBuilder sb = sb_new();
     Type_build_type_string(&sb,node->declaration.type);
 
@@ -162,14 +162,14 @@ void print_decl(AstExpr* node) {
     printf("\n");
 }
 
-void print_if(AstExpr* node) {
+void print_if(AstNode* node) {
     printf("if: condition= ");
     print_statements(node->if_statement.condition);
     printf(" body= ");
     print_statements(node->if_statement.body);
     printf("\n");
 }
-void print_for(AstExpr* node) {
+void print_for(AstNode* node) {
     printf("for:\n\tinit = ");
     print_statements(node->for_statement.initial);
     printf("\tcondition = ");
@@ -179,29 +179,29 @@ void print_for(AstExpr* node) {
     printf("\n\tbody = ");
     print_statements(node->for_statement.body);
 }
-void print_while(AstExpr* node) {
+void print_while(AstNode* node) {
     printf("\n\twhile: condition = ");
     print_statements(node->while_statement.condition);
     printf("\n\tbody = ");
     print_statements(node->while_statement.body);
 }
-void print_return(AstExpr* node) {
+void print_return(AstNode* node) {
     printf("\n\treturn: expr = ");
     print_statements(node->return_statement.expression);
     printf("\n");
 }
-void print_block(AstExpr* node) {
+void print_block(AstNode* node) {
     printf("BLOCK: {\n");
     print_statements(node->block_statement.statements);
     printf("}\n");
 }
-void print_struct_decl(AstExpr* node) {
+void print_struct_decl(AstNode* node) {
     printf("\nstruct: name = %s fields = ",node->struct_declaration.name);
     print_statements(node->struct_declaration.body);
 }
 
-void print_statements(AstExpr* stm) {
-    AstExpr* next = stm;
+void print_statements(AstNode* stm) {
+    AstNode* next = stm;
     while( next != NULL ) {
         switch( next->type ) {
             case AST_FUNCTION_DECLARATION:
@@ -233,7 +233,7 @@ void print_statements(AstExpr* stm) {
                 next = next->block_statement.next;
                 break;
             case AST_EXPRESSION_STATEMENT:
-                print_expr(next->expression_statement.value); 
+                print_expr(next->expression_statement.expression); 
                 printf("\n");
                 next = next->expression_statement.next;
                 break;
@@ -252,7 +252,8 @@ void print_statements(AstExpr* stm) {
     }
 }
 
-void print_program_ast(AstExpr* ast) {
+void print_program_ast(AstNode* ast) {
+    printf("\n");
     print_statements(ast);
     printf("\n");
 }

@@ -200,6 +200,7 @@ Lexer lex_file(String string) {
                 continue;
         }
 
+        // Int Number
         if( c >= '0' && c <= '9' ) {
             do {
                 tmp[tmp_idx++] = c; 
@@ -213,6 +214,7 @@ Lexer lex_file(String string) {
             strncpy(t.value,tmp,100);
             tokens[tokens_idx++] = t;
 
+        // String Litteral
         } else if( c == '\"') {
             c = String_getc(&string);
             while( c != '\"' || c == EOF) {

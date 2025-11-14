@@ -24,7 +24,7 @@ typedef enum {
 
     AST_STRUCT_DECLARATION,
     AST_EXTERN_STATEMENT,
-} Ast_ExprType;
+} AstNode_Type;
 
 typedef struct TypeInfo {
     uint8_t star_number;
@@ -32,119 +32,122 @@ typedef struct TypeInfo {
     char* type_name;
 } TypeInfo;
 
-typedef struct AstExpr {
-    Ast_ExprType type;            
+typedef struct AstNode {
+    AstNode_Type type;            
     union {
         struct BinaryOperation {
-            Type type;
+            int is_lvalue;
+            Type* type;
             Token opp_token;        
-            struct AstExpr* left; 
-            struct AstExpr* right; 
+            struct AstNode* left; 
+            struct AstNode* right; 
         } binary_operation;
         struct UnaryOperation {
-            //Type* type;
+            int is_lvalue;
+            Type* type;
             Token opp_token;        
-            struct AstExpr* right; 
+            struct AstNode* right; 
         } unary_operation; // TODO implement unary in parser
         struct FuncCall {
             Token identifier;
-            struct AstExpr* args; // argument*
-        } func_call;   
-        struct FuncArg {
-            struct AstExpr* value; // expression_statement*
-            struct AstExpr* next; // CAN BE NULL
+            struct AstNode* args; // argument*
+        } function_call;   
+        struct Arg {
+            struct AstNode* value; // expression_statement*
+            struct AstNode* next; // CAN BE NULL
         } argument;
         struct ArgDecl {
             Type* type;
             char* ident;
-            struct AstExpr* next; // CAN BE NULL
+            struct AstNode* next; // CAN BE NULL
         } argument_decl;
         struct Number {
-            Token token;   
+            char* value;
+            Type* type;
         } number;     
         struct AstString {
             Token token;   
         } string;     
         struct Identifier {
-            Type type;
+            Type* type;
             Token token;
         } identifier;
         struct Declaretion {
             Type* type;
             char* name;         
-            struct AstExpr* value; // AST_EXPRESSION_STATEMENT // CAN BE NULL
-            struct AstExpr* next; // CAN BE NULL
+            struct AstNode* value; // AST_EXPRESSION_STATEMENT // CAN BE NULL
+            struct AstNode* next; // CAN BE NULL
         } declaration;
         struct FunctionDeclaration {
             Type* return_type;
             char* name;          
-            struct AstExpr* args;      
-            struct AstExpr* body; // BlockStatment
-            struct AstExpr* next; // CAN BE NULL
+            struct AstNode* args;      
+            struct AstNode* body; // BlockStatment
+            struct AstNode* next; // CAN BE NULL
         } function_declaration;   
         struct IfStatement {
-            struct AstExpr* condition;
-            struct AstExpr* body; // BlockStatment
-            struct AstExpr* else_block; // NOT IMPLEMENTED
-            struct AstExpr* next;
+            struct AstNode* condition;
+            struct AstNode* body; // BlockStatment
+            struct AstNode* else_block; // NOT IMPLEMENTED
+            struct AstNode* next;
         } if_statement;
         struct ForStatement {
-            struct AstExpr* initial;
-            struct AstExpr* condition;
-            struct AstExpr* iteration;
-            struct AstExpr* body; // BlockStatment
-            struct AstExpr* next;
+            struct AstNode* initial;
+            struct AstNode* condition;
+            struct AstNode* iteration;
+            struct AstNode* body; // BlockStatment
+            struct AstNode* next;
         } for_statement;
         struct WhileStatement {
-            struct AstExpr* condition;
-            struct AstExpr* body; // BlockStatment
-            struct AstExpr* next;
+            struct AstNode* condition;
+            struct AstNode* body; // BlockStatment
+            struct AstNode* next;
         } while_statement;
         struct ReturnStatement {
-            struct AstExpr* expression;
-            struct AstExpr* next; // Can be NULL
+            struct AstNode* expression;
+            struct AstNode* next; // Can be NULL
         } return_statement;
         struct BlockStatment {
-            struct AstExpr* statements; // Can be NULL
-            struct AstExpr* next; // Can be NULL
+            struct AstNode* statements; // Can be NULL
+            struct AstNode* next; // Can be NULL
         } block_statement;
         struct ExpressionStatement {
-            Type type;
-            struct AstExpr* value; // Can be NULL
-            struct AstExpr* next; // Can be NULL
+            Type* type;
+            struct AstNode* expression; // Can be NULL
+            struct AstNode* next; // Can be NULL
         } expression_statement;
         struct StructDeclaration {
             char* name;
-            struct AstExpr* body; // BlockStatment
-            struct AstExpr* next; // Can be NULL
+            struct AstNode* body; // BlockStatment
+            struct AstNode* next; // Can be NULL
         } struct_declaration;
         struct ExternStatement {
-            struct AstExpr* body; // BlockStatment / declaration / fn_declaration in global scope
-            struct AstExpr* next; // Can be NULL
+            struct AstNode* body; // BlockStatment / declaration / fn_declaration in global scope
+            struct AstNode* next; // Can be NULL
         } extern_statement;
     };
-} AstExpr;
+} AstNode;
 
 int get_binding_power(Token opp);
 int is_opp(Token k);
 int is_unary(Token k);
 
-AstExpr* parse_expr_statement(Lexer* lexer);
-AstExpr* parse_expr(Lexer* lexer, int curr_bp);
-AstExpr* parse_decl(Lexer* lexer);
-AstExpr* parse_func_decl(Lexer* lexer);
-AstExpr* parse_program(Lexer* lexer);
-AstExpr* parse_arg_decl(Lexer* lexer);
-AstExpr* parse_args(Lexer* lexer);
-AstExpr* parse_statements(Lexer* lexer);
-AstExpr* parse_statement(Lexer* lexer);
-AstExpr* parse_function_call(Lexer* lexer,Token ident);
-AstExpr* parse_unary(Lexer* lexer, Token opp);
+AstNode* parse_expr_statement(Lexer* lexer);
+AstNode* parse_expr(Lexer* lexer, int curr_bp);
+AstNode* parse_decl(Lexer* lexer);
+AstNode* parse_func_decl(Lexer* lexer);
+AstNode* parse_program(Lexer* lexer);
+AstNode* parse_arg_decl(Lexer* lexer);
+AstNode* parse_args(Lexer* lexer);
+AstNode* parse_statements(Lexer* lexer);
+AstNode* parse_statement(Lexer* lexer);
+AstNode* parse_function_call(Lexer* lexer,Token ident);
+AstNode* parse_unary(Lexer* lexer, Token opp);
 TypeInfo parse_type_info(Lexer* lexer);
 Type* parse_type(Lexer* lexer);
 
-AstExpr* Ast_make_number(Token number);
-AstExpr* Ast_make_ident(Token ident);
-AstExpr* AST_make_binary(AstExpr* left, Token opp, AstExpr* right);
+AstNode* Ast_make_number(Token number);
+AstNode* Ast_make_ident(Token ident);
+AstNode* AST_make_binary(AstNode* left, Token opp, AstNode* right);
 
 #endif

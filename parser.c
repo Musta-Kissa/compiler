@@ -9,6 +9,7 @@
 //==================================
 
 #include "parser.h"
+#include "my_string.h"
 #include "lexer.h"
 
 #define PANIC(fmt, ...) { \
@@ -23,8 +24,8 @@
     } \
 }
 
-AstExpr* AST_make_binary(AstExpr* left, Token opp, AstExpr* right) {
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+AstNode* AST_make_binary(AstNode* left, Token opp, AstNode* right) {
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
     node->type = AST_BINARY_OPERATION;
     
     node->binary_operation.opp_token    = opp;
@@ -32,20 +33,22 @@ AstExpr* AST_make_binary(AstExpr* left, Token opp, AstExpr* right) {
     node->binary_operation.right        = right;
     return node;
 }
-AstExpr* Ast_make_number(Token number) {
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+/*
+AstNode* Ast_make_number(Token number) {
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
     node->type = AST_NUMBER;
     node->number.token = number;
     return node;
 }
-AstExpr* Ast_make_ident(Token ident) {
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+*/
+AstNode* Ast_make_ident(Token ident) {
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
     node->type = AST_IDENTIFIER;
     node->identifier.token = ident;
     return node;
 }
-AstExpr* Ast_make_unary(Token opp, AstExpr* right) {
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+AstNode* Ast_make_unary(Token opp, AstNode* right) {
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
     node->type = AST_UNARY_OPERATION;
     node->unary_operation.opp_token = opp;
     node->unary_operation.right = right;
@@ -117,8 +120,8 @@ int is_opp(Token k) {
 }
 
 // consumes the whole function call
-AstExpr* parse_args(Lexer* lexer) {
-    AstExpr* arg_node = (AstExpr*)malloc(sizeof(AstExpr));
+AstNode* parse_args(Lexer* lexer) {
+    AstNode* arg_node = (AstNode*)malloc(sizeof(AstNode));
         arg_node ->type = AST_ARGUMENT;
         arg_node ->argument.value = parse_expr_statement(lexer);
 
@@ -135,22 +138,22 @@ AstExpr* parse_args(Lexer* lexer) {
     }
 }
 
-AstExpr* parse_function_call(Lexer* lexer,Token ident) {
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+AstNode* parse_function_call(Lexer* lexer,Token ident) {
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
     node->type = AST_FUNC_CALL;
     if( Lexer_peek(lexer).kind == CLOSE_PARENT) { // EMPTY FUNCTION CALL
         Lexer_next(lexer);
-        node->func_call.identifier = ident;
-        node->func_call.args = NULL;
+        node->function_call.identifier = ident;
+        node->function_call.args = NULL;
     } else {
-        node->func_call.identifier = ident;
-        node->func_call.args = parse_args(lexer);
+        node->function_call.identifier = ident;
+        node->function_call.args = parse_args(lexer);
     }
     return node;
 }
 
 // 2 = unary; 1 = terminal; 0 = open_parent
-int parse_leaf(Lexer* lexer,AstExpr** left) {
+int parse_leaf(Lexer* lexer,AstNode** left) {
     Token t = Lexer_peek(lexer);
 
     if( is_unary(t) ){
@@ -158,7 +161,7 @@ int parse_leaf(Lexer* lexer,AstExpr** left) {
         return 2;
     }
     Lexer_next(lexer);
-    AstExpr* leaf = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* leaf = (AstNode*)malloc(sizeof(AstNode));
 
     switch(t.kind) {
         case IDENT:
@@ -175,12 +178,33 @@ int parse_leaf(Lexer* lexer,AstExpr** left) {
             }
         case NUMBER:
             leaf->type = AST_NUMBER;
-            leaf->number.token = t;
+            // float
+            if( Lexer_peek(lexer).kind == DOT ) {
+                Lexer_next(lexer);
+
+                StringBuilder value = sb_new();
+                sb_append(&value,t.value);
+                sb_append(&value,".");
+                // Has decimal places
+                if( Lexer_peek(lexer).kind == NUMBER ) {
+                    sb_append(&value, Lexer_next(lexer).value);
+                } else {
+                    sb_append(&value, "0");
+                }
+
+                leaf->number.value = value.buffer; // leaf takes ownership of buffer
+                leaf->number.type = (Type*)malloc(sizeof(Type));
+                *leaf->number.type = (Type){.type_kind=FLOAT_TYPE, .type_name = "float" };
+            } else { // Intiger
+                leaf->number.value = t.value;
+                leaf->number.type = (Type*)malloc(sizeof(Type));
+                *leaf->number.type = (Type){.type_kind=INTIGER_TYPE, .type_name = "int" };
+            }
             *left = leaf;
             return 1;
         case STRING:
             leaf->type = AST_STRING;
-            leaf->number.token = t;
+            leaf->string.token = t;
             *left = leaf;
             return 1;
         case OPEN_PARENT:
@@ -199,14 +223,14 @@ int parse_leaf(Lexer* lexer,AstExpr** left) {
 // loop good when bp lowering
 // a < b + c * d + e;
 
-AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
+AstNode* parse_incrising_bp(Lexer* lexer, AstNode* left, int min_bp) {
     Token next = Lexer_peek(lexer);
 
     if( next.kind == CLOSE_PARENT  || next.kind == SUBSCRIPT_CLOSE ) {
         return NULL; //PRETEND EOF
     }
     if( !is_opp(next) && !is_unary(next)) { // EOF
-        // comma,close_parent -> func_call ; semicolon -> any expr; open_curly_parent -> for/while/if statement
+        // comma,close_parent -> function_call ; semicolon -> any expr; open_curly_parent -> for/while/if statement
         ASSERT((next.kind == SEMICOLON || next.kind == COMMA || next.kind == OPEN_CURRLY_PARENT || next.kind == CLOSE_PARENT), 
                 "%s %d: expected SEMICOLON, COMMA , CLOSE_PARENT or OPEN_CURRLY_PARENT, got %s, lexer idx: %d", __FILE__, __LINE__, format_enum(next), lexer->idx);
         return NULL;
@@ -217,7 +241,7 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
         return NULL; // Pretend EOF
     } else {
         Lexer_next(lexer);
-        AstExpr* right;
+        AstNode* right;
         if( next.kind == SUBSCRIPT_OPEN) {
             right = parse_expr(lexer,0);
             Lexer_next(lexer); // CONSUME SUBSCRIPT_CLOSE
@@ -235,13 +259,13 @@ AstExpr* parse_incrising_bp(Lexer* lexer, AstExpr* left, int min_bp) {
     }
     
 }
-AstExpr* parse_expr(Lexer* lexer, int min_bp) {
+AstNode* parse_expr(Lexer* lexer, int min_bp) {
     if( Lexer_peek(lexer).kind == SEMICOLON ) { //EMPTY EXPR
         ASSERT(min_bp == 0, "%s %d: expected SEMICOLON to be at the begginig of the expr",__FILE__,__LINE__);
         return NULL;
     }
 
-    AstExpr* left;
+    AstNode* left;
     int leaf_return = parse_leaf(lexer,&left);
     if( leaf_return == 0 ) // OPENING PARENT
     { 
@@ -251,7 +275,7 @@ AstExpr* parse_expr(Lexer* lexer, int min_bp) {
                 "%s %d: expected close CLOSE_PARENT got: %s", __FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
     }
     while(true) {
-        AstExpr* node;
+        AstNode* node;
         node = parse_incrising_bp(lexer,left,min_bp);
         if( node == NULL ) {
             return left;
@@ -265,12 +289,11 @@ AstExpr* parse_expr(Lexer* lexer, int min_bp) {
 //  banana : int = 5; 
 //  banana : int;
 //  banana := 5;     
-AstExpr* parse_decl(Lexer* lexer) {
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+AstNode* parse_decl(Lexer* lexer) {
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_DECLARATION;
     Token ident = Lexer_next(lexer);
         node->declaration.name = ident.value;
-        //node->declaration.type_info.star_number = 0;
 
     Lexer_next(lexer); // Consume colon
     ASSERT( (Lexer_curr(lexer).kind == COLON ), "%s %d: Expected COLON after type in variable decl, got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
@@ -285,7 +308,6 @@ AstExpr* parse_decl(Lexer* lexer) {
         case SUBSCRIPT_OPEN: // []int
         case IDENT: // int
             node->declaration.type = parse_type(lexer);
-            //node->declaration.type_info.type_name  = Lexer_next(lexer).value;
             if( Lexer_peek(lexer).kind == ASSIGN ) { // Value given
                 Lexer_next(lexer); // Consume Assign
                 node->declaration.value = parse_expr_statement(lexer);
@@ -303,8 +325,8 @@ AstExpr* parse_decl(Lexer* lexer) {
     return node;
 }
 
-AstExpr* parse_arg_decl(Lexer* lexer) {
-    AstExpr* arg_node = (AstExpr*)malloc(sizeof(AstExpr));
+AstNode* parse_arg_decl(Lexer* lexer) {
+    AstNode* arg_node = (AstNode*)malloc(sizeof(AstNode));
         arg_node->type = AST_ARGUMENT_DECLARATION;
     /*
         arg_node->argument_decl.type_info.star_number = 0;
@@ -336,11 +358,11 @@ AstExpr* parse_arg_decl(Lexer* lexer) {
 // expects Lexer_curr() == OPEN_CURRLY_PARENT
 // consumes whole block including ending CLOSE_CURRLY_PARENT '}'
 // doesnt set block_statement.next
-AstExpr* parse_block_statement(Lexer* lexer) {
+AstNode* parse_block_statement(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME OPEN_CURRLY_PARENT 
     ASSERT( (Lexer_curr(lexer).kind == OPEN_CURRLY_PARENT) ,"%s %d: expected OPEN_CURRLY_PARENT",__FILE__,__LINE__);
 
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_BLOCK_STATEMENT;
         node->block_statement.statements = parse_statements(lexer);
     Lexer_next(lexer); // CONSUME CLOSE_CURRLY_PARENT
@@ -348,9 +370,9 @@ AstExpr* parse_block_statement(Lexer* lexer) {
     return node;
 }
 
-AstExpr* parse_func_decl(Lexer* lexer) {
+AstNode* parse_func_decl(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME FN 
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_FUNCTION_DECLARATION;
         //node->function_declaration.return_type_info.star_number = 0;
 
@@ -369,6 +391,7 @@ AstExpr* parse_func_decl(Lexer* lexer) {
         ASSERT( (Lexer_curr(lexer).kind == CLOSE_PARENT) , "%s %d: expected CLOSE_PARENT, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     }
 
+    // Explicit return
     if( Lexer_peek(lexer).kind == ARROW ) {
         Lexer_next(lexer);
         node->function_declaration.return_type = parse_type(lexer);
@@ -382,9 +405,9 @@ AstExpr* parse_func_decl(Lexer* lexer) {
         node->function_declaration.return_type_info.type_name = return_type_name.value;
         */
 
-    } else {
+    } else { // Implicid void return
         Type* return_type = (Type*)malloc(sizeof(Type));
-        *return_type = (Type){.type_kind=UNKNOWN_TYPE, .type_name = "void" };
+        *return_type = (Type){.type_kind=VOID_TYPE, .type_name = "void" };
         node->function_declaration.return_type = return_type;
     }
     ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{', got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
@@ -393,9 +416,9 @@ AstExpr* parse_func_decl(Lexer* lexer) {
     return node;
 }
 
-AstExpr* parse_for(Lexer* lexer) {
+AstNode* parse_for(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME FOR
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_FOR_STATEMENT;
 
     node->for_statement.initial = parse_statement(lexer);
@@ -412,9 +435,9 @@ AstExpr* parse_for(Lexer* lexer) {
     return node;
 }
 
-AstExpr* parse_while(Lexer* lexer) {
+AstNode* parse_while(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME WHILE
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_WHILE_STATEMENT;
         node->while_statement.condition = parse_statement(lexer);
 
@@ -423,17 +446,17 @@ AstExpr* parse_while(Lexer* lexer) {
     ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after if_statement body, got %s, idx: %d",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)),lexer->idx);
     return node;
 }
-AstExpr* parse_return(Lexer* lexer) {
+AstNode* parse_return(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME RETURN
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_RETURN_STATEMENT;
         node->return_statement.expression = parse_statement(lexer);
     ASSERT( (Lexer_curr(lexer).kind == SEMICOLON ), "%s %d: Expected SEMICOLON after return expr , got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
     return node;
 }
-AstExpr* parse_if(Lexer* lexer) {
+AstNode* parse_if(Lexer* lexer) {
     Lexer_next(lexer); // CONSUME IF
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_IF_STATEMENT;
         node->if_statement.condition = parse_expr_statement(lexer);
 
@@ -444,35 +467,37 @@ AstExpr* parse_if(Lexer* lexer) {
 }
 
 /// Consumes ending SEMICOLON
-AstExpr* parse_expr_statement(Lexer* lexer) {
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+AstNode* parse_expr_statement(Lexer* lexer) {
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_EXPRESSION_STATEMENT;
-        node->expression_statement.value = parse_expr(lexer,0);
+        node->expression_statement.expression = parse_expr(lexer,0);
+
     Token next = Lexer_peek(lexer);
     if( next.kind == SEMICOLON ) {
         Lexer_next(lexer);
     } else {
-        ASSERT( (next.kind == OPEN_CURRLY_PARENT || next.kind == CLOSE_PARENT || next.kind == COMMA ), "%s %d: Expected SEMICOLON, OPEN_CURRLY_PARENT, CLOSE_PARENT or COMMA after expr statement , got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
+        //          (arfer conditional stm)          (inside function call)    (inside function call)
+        ASSERT( (next.kind == OPEN_CURRLY_PARENT || next.kind == CLOSE_PARENT  ||  next.kind == COMMA ), "%s %d: Expected SEMICOLON, OPEN_CURRLY_PARENT, CLOSE_PARENT or COMMA after expr statement , got %s",__FILE__,__LINE__,format_enum(Lexer_curr(lexer)));
     }
     return node;
 }
-AstExpr* parse_struct_decl(Lexer* lexer) {
+AstNode* parse_struct_decl(Lexer* lexer) {
     Lexer_next(lexer); // Consume STRUCT
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_STRUCT_DECLARATION;
         node->struct_declaration.name = Lexer_next(lexer).value;
     ASSERT( (Lexer_curr(lexer).kind == IDENT), "%s %d: Expected IDENT after STRUCT keyword",__FILE__,__LINE__);
         node->struct_declaration.body = parse_block_statement(lexer);
     return node;
 }
-AstExpr* parse_extern_statement(Lexer* lexer) {
+AstNode* parse_extern_statement(Lexer* lexer) {
     Lexer_next(lexer); // Consume EXTERN
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
         node->type = AST_EXTERN_STATEMENT;
         node->extern_statement.body = parse_statement(lexer);
     return node;
 }
-AstExpr* parse_statement(Lexer* lexer) {
+AstNode* parse_statement(Lexer* lexer) {
     Token next = Lexer_peek(lexer);
     if( next.kind == EOF_TOKEN || next.kind == CLOSE_CURRLY_PARENT) // The caller must consume the CLOSE_CURRLY_PARENT
         return NULL;
@@ -481,7 +506,7 @@ AstExpr* parse_statement(Lexer* lexer) {
         return NULL;
     }
 
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
 
     switch( next.kind ) {
         case IF:
@@ -534,12 +559,12 @@ AstExpr* parse_statement(Lexer* lexer) {
 
 // expects Lexer_next() == OPEN_CURRLY_PARENT | {KEYWORD} | {DECL}
 // consumes whole statement with ; and } 
-AstExpr* parse_statements(Lexer* lexer) {
+AstNode* parse_statements(Lexer* lexer) {
     Token next = Lexer_peek(lexer);
     if( next.kind == EOF_TOKEN || next.kind == CLOSE_CURRLY_PARENT ) 
         return NULL;
 
-    AstExpr* node = (AstExpr*)malloc(sizeof(AstExpr));
+    AstNode* node = (AstNode*)malloc(sizeof(AstNode));
 
     switch( next.kind ) {
         case IF:
@@ -572,13 +597,16 @@ AstExpr* parse_statements(Lexer* lexer) {
             node->extern_statement.next = parse_statements(lexer);
             return node;
         case STRUCT:
+            PANIC("Structs Are not Supported")
+            /*
             node = parse_struct_decl(lexer);
             node->struct_declaration.next = parse_statements(lexer);
             return node;
+            */
     }
-    // expected identifier than if ':' its a declaration if not an expression;
     //ASSERT( (next.kind == IDENT || next.kind == OPEN_PARENT || is_unary(next)) ,"expected KEYWORD,UNARY_OPP,OPEN_CURRLY_PARENT, OPEN_PARENT or IDENT got %s, idx: %d",format_enum(next),lexer->idx);
 
+    // expected identifier than if ':' its a declaration if not an expression;
     if( Lexer_peek_n(lexer,2).kind == COLON ) {
         node = parse_decl(lexer);
         node->declaration.next = parse_statements(lexer);
@@ -590,8 +618,8 @@ AstExpr* parse_statements(Lexer* lexer) {
     }
 }
 
-AstExpr* parse_program(Lexer* lexer) {
-    AstExpr* ast = parse_statements(lexer);
+AstNode* parse_program(Lexer* lexer) {
+    AstNode* ast = parse_statements(lexer);
     return ast;
 }
 
@@ -611,29 +639,7 @@ Type* parse_type(Lexer* lexer) {
             type->pointer_type.sub_type = parse_type(lexer);
             return type;
         case SUBSCRIPT_OPEN: 
-            type->type_kind = ARRAY_TYPE;
-            type->type_name = NULL;
-            type->array_type.length = -1;
-            
-            if( Lexer_peek(lexer).kind == NUMBER ) {
-                char* num_str = Lexer_next(lexer).value;
-                char *endptr;
-                type->array_type.length = strtol(num_str, &endptr, 10);
-
-                if( errno == ERANGE ) {
-                    PANIC("%s %d: Value out of range",__FILE__,__LINE__);
-                } else if( endptr == num_str ) {
-                    //No digits were found
-                    PANIC("%s %d:UNRACHABLE!!!",__FILE__,__LINE__);
-                } else if( type->array_type.length == 0 ) {
-                    PANIC("Array lenght cant be zero!");
-                }
-            }
-
-            Lexer_next(lexer);
-            ASSERT( (Lexer_curr(lexer).kind == SUBSCRIPT_CLOSE), "Expected SUBSCRIPT_CLOSE after SUBSCRIPT_OPEN while parsing type, got %s, idx:%d",format_enum(next),lexer->idx);
-            type->array_type.sub_type = parse_type(lexer);
-            return type;
+            PANIC("Arrays are not supported")
         case IDENT:
             type->type_kind = UNKNOWN_TYPE;
             type->type_name = next.value;

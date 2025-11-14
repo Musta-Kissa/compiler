@@ -6,7 +6,7 @@
 #include "my_string.h"
 #include "parser.h"
 #include "analyzer.h"
-#include "backend.h"
+//#include "backend.h"
 
 #define PANIC(fmt, ...) { \
     printf(fmt "\n", ##__VA_ARGS__); \
@@ -16,14 +16,14 @@
 #include "print_ast.h"
 
 int main(int argc, char* argv[]) {
-    FILE* f = fopen("./input3.txt","r");
+    FILE* f = fopen("./input.txt","r");
 
     String source = String_readfile(f);
     //printf("source: \n%s",source.data);
     //printf("============= end source ===============\n\n");
 
     printf("sizeof(Tyep) = %d\n",sizeof(Type));
-    printf("sizeof(Ast) = %d\n",sizeof(AstExpr));
+    printf("sizeof(Ast) = %d\n",sizeof(AstNode));
 
 
     Lexer lexer = lex_file(source);
@@ -39,18 +39,16 @@ int main(int argc, char* argv[]) {
         }
         printf("\n");
     }
-    /*
-    */
 
-    AstExpr* program = parse_program(&lexer);
+    AstNode* program = parse_program(&lexer);
 
     print_program_ast(program);
 
     analyze_program_ast(program);
     
-    const char* output = generate_output(program);
-    printf("Output:\n%s",output);
-    compile_string(output);
+    //const char* output = generate_output(program);
+    //printf("Output:\n%s",output);
+    //compile_string(output);
     /*
     */
 }

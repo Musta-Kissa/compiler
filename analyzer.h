@@ -1,6 +1,7 @@
 #ifndef ANALYZER_H
 #define ANALYZER_H
 
+#define NESTED_FUNCTIONS 1000
 #define FRAMES_NUM 1000
 #define VARS_NUM   1000
 #define TYPES_NUM  1000
@@ -27,6 +28,8 @@ typedef struct Analyzer {
     int   types_idx;
 } Analyzer;
 
+int is_lvalue(AstNode* node);
+
 
 void Analyzer_init();
 void Analyzer_append_type(Type type);
@@ -36,16 +39,16 @@ Stack Stack_new();
 void Stack_new_frame(Stack* stk);
 void Stack_pop_frame(Stack* stk);
 void Stack_append(Stack* stk, Variable var);
-void analyze_statements(AstExpr* stm);
-void analyze_program_ast(AstExpr* ast);
-Type analyze_expr_statement_inner(AstExpr* stm);
-Type analyze_expr_statement(AstExpr* stm);
-Type analyze_func_call(AstExpr* stm);
-void analyze_func_call_args(AstExpr* stm);
+void analyze_statements(AstNode* stm);
+void analyze_program_ast(AstNode* ast);
+Type analyze_expr_statement_inner(AstNode* stm);
+Type analyze_expr_statement(AstNode* stm);
+Type analyze_func_call(AstNode* stm);
+void analyze_func_call_args(AstNode* stm);
 int type_is_impl(const char* type, ...);
-Type create_type_from_ast_node(AstExpr* node); // Depricated
+Type create_type_from_ast_node(AstNode* node); // Depricated
 int analyze_type(Type* type);
-const char* format_ast_type(AstExpr* stm);
+const char* format_ast_type(AstNode* stm);
 
 #define type_is(...) type_is_impl(__VA_ARGS__,NULL)
 

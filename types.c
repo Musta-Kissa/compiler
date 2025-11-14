@@ -21,9 +21,6 @@ Type Type_new(char* type_name, TypeKind type_kind) {
     return (Type){ .type_name=type_name,.type_kind=type_kind };
 }
 Type Type_get_field_type(Type type,char* field_name) {
-    if( strcmp(field_name, "length") == 0 ) {
-        return Type_new("int",PRIMITIVE_TYPE);
-    }
     ASSERT( (type.type_kind == STRUCT_TYPE), "Expected STRUCT_TYPE");
 
     FieldListNode* curr = type.struct_type.fields;
@@ -40,57 +37,61 @@ const char* Type_format_type_kind(Type type) {
     switch( type.type_kind ) {
         case FUNCTION_TYPE:     return "FUNCTION_TYPE";
         case STRUCT_TYPE:       return "STRUCT_TYPE";
-        case PRIMITIVE_TYPE:    return "PRIMITIVE_TYPE";
         case ENUM_TYPE:         return "ENUM_TYPE";
         case UNION_TYPE:        return "UNION_TYPE";
         case POINTER_TYPE:      return "POINTER_TYPE";
+        case ARRAY_TYPE:        return "ARRAY_TYPE";
+        case BOOL_TYPE:         return "BOOL_TYPE";
+        case VOID_TYPE:         return "VOID_TYPE";
+        case UNKNOWN_TYPE:      return "UNKNOWN_TYPE";
+        case INTIGER_TYPE:      return "INTIGER_TYPE";
+        case FLOAT_TYPE:        return "FLOAT_TYPE";
+        default:
+            PANIC("Unhandled Case")
     }
+
+
+}
+Type* Type_alloc_type(Type type) {
+    Type* out = (Type*)malloc(sizeof(Type));
+    *out = type;
+    return out;
 }
 char* format_type(Type type) {
     PANIC("Not implemented");
     switch( type.type_kind ) {
         case STRUCT_TYPE:       return "STRUCT_TYPE";
-        case PRIMITIVE_TYPE:    return "PRIMITIVE_TYPE";
         case ENUM_TYPE:         return "ENUM_TYPE";
         case UNION_TYPE:        return "UNION_TYPE";
             return type.type_name;
         case POINTER_TYPE:      return "POINTER_TYPE";
             return type.pointer_type.sub_type->type_name;
         case FUNCTION_TYPE:     return "FUNCTION_TYPE";
+        default:
+            PANIC("%s %d:Unhandled Case",__FILE__,__LINE__);
     }
 }
-// 0 = NOT THE SAME, 1 = THE SAME, 2 ARR_DIFFRENT_LENGTH, 3 ARR_DIFFRENT_LENGTH_LEFT_NOT_SPECIFIED
+// 0 = NOT THE SAME, 1 = THE SAME 
 int Type_cmp(Type* type1, Type* type2) {
     if( type1->type_kind != type2->type_kind ) {
         return 0;
     }
     switch( type1->type_kind ) {
-        case PRIMITIVE_TYPE:
-            if( strcmp(type1->type_name,type2->type_name) == 0 ) {
-                return 1;
-            } else {
-                return 0;
-            }
         case STRUCT_TYPE:
         case ENUM_TYPE:
         case UNION_TYPE:
-            return 1;
+            PANIC("%s %d:NOT IMPLEMENTED",__FILE__,__LINE__);
         case POINTER_TYPE:
             return Type_cmp(type1->pointer_type.sub_type,type2->pointer_type.sub_type);
         case ARRAY_TYPE:
-            //if(type2->array_type.length == -1) {
-                //return 0;
-            //}
-            if(type1->array_type.length != type2->array_type.length) {
-                if(type1->array_type.length == -1 ) {
-                    return 3;
-                } else {
-                    return 2;
-                }
-            }
-            return Type_cmp(type1->array_type.sub_type,type2->array_type.sub_type);
+            PANIC("%s %d:UNREACHABLE",__FILE__,__LINE__);
         case FUNCTION_TYPE:
             PANIC("Function types comparison is not implemented");
+        case BOOL_TYPE:
+        case VOID_TYPE:
+        case INTIGER_TYPE:
+        case FLOAT_TYPE:
+            return 1;
         default:
             PANIC("%s %d:PANICKED",__FILE__,__LINE__);
     }
@@ -102,7 +103,7 @@ void Type_build_type_string(StringBuilder* sb, Type* type ){
     }
     switch( type->type_kind ) {
         case STRUCT_TYPE:
-        case PRIMITIVE_TYPE:
+        //case PRIMITIVE_TYPE:
         case ENUM_TYPE:
         case UNKNOWN_TYPE:
         case UNION_TYPE:
@@ -138,36 +139,19 @@ void Type_build_type_string(StringBuilder* sb, Type* type ){
             sb_append(sb,") -> ");
             Type_build_type_string(sb,type->function_type.return_type);
             return;
-        case NUMBER_TYPE:
-            sb_append(sb,"NUMBER_TYPE");
-            Type_build_type_string(sb,type->pointer_type.sub_type);
-            return;
         case BOOL_TYPE:
             sb_append(sb,"BOOL_TYPE");
-            Type_build_type_string(sb,type->pointer_type.sub_type);
+            return;
+        case VOID_TYPE:
+            sb_append(sb,"VOID_TYPE");
+            return;
+        case INTIGER_TYPE:
+            sb_append(sb,"INTIGER_TYPE");
+            return;
+        case FLOAT_TYPE:
+            sb_append(sb,"FLOAT_TYPE");
             return;
         default:
-            PANIC("%s %d:PANICKED",__FILE__,__LINE__);
-    }
-}
-int Type_is_lvalue(Type* type){
-    switch( type->type_kind ) {
-        case ARRAY_TYPE:
-        case STRUCT_TYPE:
-        case UNION_TYPE:
-        case ENUM_TYPE:
-        case PRIMITIVE_TYPE:
-            return true;
-
-        case NUMBER_TYPE:
-        case BOOL_TYPE:
-        case POINTER_TYPE:
-        case FUNCTION_TYPE:
-            return false;
-
-
-        case UNKNOWN_TYPE:
-        default:
-            PANIC("%s %d: PANICKED",__FILE__,__LINE__);
+            PANIC("%s %d:Unhandled Case %s",__FILE__,__LINE__,Type_format_type_kind(*type));
     }
 }

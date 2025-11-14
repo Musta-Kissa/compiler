@@ -84,9 +84,9 @@ void sb_append(StringBuilder* sb, const char* fmt, ...) {
     sb->length += needed;
 }
 
-void print_expr_to_sb(StringBuilder* sb,AstExpr* expr);
+void print_expr_to_sb(StringBuilder* sb,AstNode* expr);
 
-void print_args_to_sb(StringBuilder* sb, AstExpr* arg) {
+void print_args_to_sb(StringBuilder* sb, AstNode* arg) {
     if( arg == NULL) {
         // TODO change to subtract from the sb instead of printing \b
         sb_append(sb,"\b\b");
@@ -97,14 +97,14 @@ void print_args_to_sb(StringBuilder* sb, AstExpr* arg) {
     print_args_to_sb(sb,arg->argument.next);
 }
 
-void print_expr_to_sb(StringBuilder* sb,AstExpr* expr) {
+void print_expr_to_sb(StringBuilder* sb,AstNode* expr) {
     if( expr == NULL) {
         sb_append(sb,"EMPTY EXPR");
         return;
     }
     switch(expr->type) {
         case AST_NUMBER:
-            sb_append(sb,"%s",expr->number.token.value);
+            sb_append(sb,"%s",expr->number.value);
             return;
         case AST_IDENTIFIER:
             sb_append(sb,"%s",expr->identifier.token.value);
@@ -170,9 +170,9 @@ void print_expr_to_sb(StringBuilder* sb,AstExpr* expr) {
         sb_append(sb,")");
     } 
     if( expr->type == AST_FUNC_CALL ) {
-        sb_append(sb,"<Fn %s>{",expr->func_call.identifier.value);
-        if( expr->func_call.args != NULL ){
-            print_args_to_sb(sb,expr->func_call.args);
+        sb_append(sb,"<Fn %s>{",expr->function_call.identifier.value);
+        if( expr->function_call.args != NULL ){
+            print_args_to_sb(sb,expr->function_call.args);
         }
         sb_append(sb,"}");
     }

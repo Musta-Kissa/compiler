@@ -26,9 +26,9 @@ void sb_reset(StringBuilder* sb);
 void sb_free(StringBuilder* sb);
 void sb_append(StringBuilder* sb, const char* fmt, ...);
 
-typedef struct AstExpr AstExpr;
+typedef struct AstNode AstNode;
 
-void print_expr_to_sb(StringBuilder* sb,AstExpr* expr);
-void print_args_to_sb(StringBuilder* sb, AstExpr* arg);
+void print_expr_to_sb(StringBuilder* sb,AstNode* expr);
+void print_args_to_sb(StringBuilder* sb, AstNode* arg);
 
 #endif
