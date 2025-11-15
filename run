@@ -1,7 +1,8 @@
 #!/bin/bash
-gcc *.c \
-    -g \
+gcc lexer.c parser.c my_string.c main.c types.c analyzer.c \
     -Wunused-but-set-variable \
     -Wreturn-type \
     -Wno-discarded-qualifiers \
-    && ./a.out
+    -g  \
+    -o compiler \
+    && ./compiler

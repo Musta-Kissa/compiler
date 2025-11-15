@@ -28,8 +28,11 @@ typedef struct Analyzer {
     int   types_idx;
 } Analyzer;
 
-int is_lvalue(AstNode* node);
+bool is_lvalue(AstNode* node);
 
+typedef struct {
+    bool encountered_return;
+} AnalyzeStatementsReturn;
 
 void Analyzer_init();
 void Analyzer_append_type(Type type);
@@ -39,7 +42,7 @@ Stack Stack_new();
 void Stack_new_frame(Stack* stk);
 void Stack_pop_frame(Stack* stk);
 void Stack_append(Stack* stk, Variable var);
-void analyze_statements(AstNode* stm);
+AnalyzeStatementsReturn analyze_statements(AstNode* stm);
 void analyze_program_ast(AstNode* ast);
 Type analyze_expr_statement_inner(AstNode* stm);
 Type analyze_expr_statement(AstNode* stm);

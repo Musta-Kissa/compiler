@@ -10,6 +10,8 @@ const Type PRIMITIVE_TYPES[] = PRIMITIVE_TYPES_ARRAY();
 Type* CURR_EXPECTED_RETURN_TYPES[NESTED_FUNCTIONS];
 int CURR_EXPECTED_RETURN_TYPE_IDX = 0;
 
+bool IS_IN_EXTERN_BLOCK = false;
+
 #define ASSERT(expr, fmt, ...) { \
     if (!expr) { \
         printf(fmt "\n", ##__VA_ARGS__); \
@@ -178,7 +180,10 @@ void analyze_function_decl(AstNode* stm) {
     }
 
     // analyze fn body
-    analyze_statements(stm->function_declaration.body->block_statement.statements); 
+    AnalyzeStatementsReturn info = analyze_statements(stm->function_declaration.body->block_statement.statements); 
+    if( !info.encountered_return && func_type.function_type.return_type->type_kind != VOID_TYPE && !IS_IN_EXTERN_BLOCK) {
+        printf("WARNING: Function that has non void return type that doesnt have a return statement: %s\n",func_type.type_name);
+    }
     Stack_pop_frame(&anlz.declared_vars);
     CURR_EXPECTED_RETURN_TYPE_IDX--;
 }
@@ -295,7 +300,9 @@ void analyze_extern_statement(AstNode* stm) {
     }
     switch( stm->extern_statement.body->type ) {
         case AST_BLOCK_STATEMENT:
+            IS_IN_EXTERN_BLOCK = true;
             analyze_statements(stm->extern_statement.body->block_statement.statements);
+            IS_IN_EXTERN_BLOCK = false;
             break;
         default:
             PANIC("Extern statement not before block statement");
@@ -303,7 +310,8 @@ void analyze_extern_statement(AstNode* stm) {
             break;
     }
 }
-void analyze_statements(AstNode* stm) {
+AnalyzeStatementsReturn analyze_statements(AstNode* stm) {
+    AnalyzeStatementsReturn out = {.encountered_return = false };
     AstNode* next = stm;
     while( next != NULL ) {
         switch( next->type ) {
@@ -336,6 +344,7 @@ void analyze_statements(AstNode* stm) {
                 next = next->while_statement.next;
                 break;
             case AST_RETURN_STATEMENT:
+                out.encountered_return = true;
                 analyze_return(next); 
                 next = next->return_statement.next;
                 break;
@@ -354,6 +363,7 @@ void analyze_statements(AstNode* stm) {
                 PANIC("NOT SUPPORTED: %s",format_ast_type(next));
         }
     }
+    return out;
 }
 
 void analyze_program_ast(AstNode* ast) {
@@ -459,7 +469,7 @@ Type analyze_expr_statement_inner(AstNode* stm) {
         case AST_STRING:
             Type ptr_type = Type_new(NULL,POINTER_TYPE);
             ptr_type.pointer_type.sub_type = (Type*)malloc(sizeof(Type));
-            *ptr_type.pointer_type.sub_type = PRIMITIVE_TYPES[INTIGER_TYPE];
+            *ptr_type.pointer_type.sub_type = PRIMITIVE_TYPES[INTIGER_TYPE_IDX];
             ptr_type.pointer_type.sub_type->intiger_type.size = BITS_8;
             return ptr_type;
     }
@@ -647,7 +657,7 @@ Type analyze_expr_statement_inner(AstNode* stm) {
     }
 }
 
-int is_lvalue(AstNode* node) {
+bool is_lvalue(AstNode* node) {
     switch(node->type) {
         case AST_NUMBER:
         case AST_IDENTIFIER:

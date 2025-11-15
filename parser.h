@@ -36,14 +36,14 @@ typedef struct AstNode {
     AstNode_Type type;            
     union {
         struct BinaryOperation {
-            int is_lvalue;
+            bool is_lvalue;
             Type* type;
             Token opp_token;        
             struct AstNode* left; 
             struct AstNode* right; 
         } binary_operation;
         struct UnaryOperation {
-            int is_lvalue;
+            bool is_lvalue;
             Type* type;
             Token opp_token;        
             struct AstNode* right; 
