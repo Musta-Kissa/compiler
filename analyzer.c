@@ -18,10 +18,10 @@ bool IS_IN_EXTERN_BLOCK = false;
         exit(-1); \
     } \
 }
-//*(int*)0 = 0; \
 
 #define PANIC(fmt, ...) { \
-    printf(fmt "\n", ##__VA_ARGS__); \
+    printf("\033[1;31m" fmt "\033[0m" "\n", ##__VA_ARGS__); \
+    *(int*)0 = 0; \
     exit(-1); \
 }
 
@@ -109,6 +109,7 @@ void analyze_if(AstNode* stm) {
     }
     ASSERT( (stm->if_statement.condition->type == AST_EXPRESSION_STATEMENT), "Expression statement expected as IF condition");
     Type condition_type = analyze_expr_statement(stm->if_statement.condition);
+
     if(condition_type.type_kind != BOOL_TYPE ){
         StringBuilder expr_sb = sb_new();
         print_expr_to_sb(&expr_sb,stm->if_statement.condition->expression_statement.expression);
@@ -123,6 +124,10 @@ void analyze_if(AstNode* stm) {
 
 void analyze_function_decl(AstNode* stm) {
     char* ident = stm->function_declaration.name;
+
+    if( anlz.declared_vars.frames_idx > 1 ) {
+        PANIC("Function Declaration not in global scope: %s",ident);
+    }
 
     analyze_type(stm->function_declaration.return_type);
 
@@ -298,6 +303,9 @@ void analyze_extern_statement(AstNode* stm) {
     if( anlz.declared_vars.frames_idx > 1 ) {
         PANIC("Extern statement not in global scope");
     }
+    if( IS_IN_EXTERN_BLOCK ) {
+        PANIC("Cant have nested 'extern' blocks");
+    }
     switch( stm->extern_statement.body->type ) {
         case AST_BLOCK_STATEMENT:
             IS_IN_EXTERN_BLOCK = true;
@@ -369,7 +377,6 @@ AnalyzeStatementsReturn analyze_statements(AstNode* stm) {
 void analyze_program_ast(AstNode* ast) {
     Analyzer_init();
     analyze_statements(ast);
-    printf("\e[0;32manalyzed ✓\e[0m\n"); 
 }
 
 int analyze_type(Type* type) {
@@ -486,7 +493,8 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                      Type_build_type_string(&type_sb,&type);
                     PANIC("attemted to NOT a type (%s) thats not a bool %s",type_sb.buffer,expr_sb.buffer);
                 } 
-                return Type_new(NULL,BOOL_TYPE);
+                return PRIMITIVE_TYPES[BOOL_TYPE_IDX];
+
             case MINUS:
                 stm->unary_operation.is_lvalue = false;
                 ASSERT( (type.type_kind == INTIGER_TYPE || type.type_kind == FLOAT_TYPE),
@@ -565,7 +573,7 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
                 right_type = analyze_expr_statement_inner(stm->binary_operation.right);
                 if( Type_cmp(&left_type,&right_type) != 1) {
-                    PANIC("Tried to %s {%s} and {%s} witch are not the same type",format_enum(stm->binary_operation.opp_token),left_type.type_name,right_type.type_name);
+                    PANIC("Tried to %s {%s} and {%s} witch are not the same type",format_token_kind(stm->binary_operation.opp_token),left_type.type_name,right_type.type_name);
                 }
                 stm->binary_operation.type = Type_alloc_type(left_type);
                 return left_type;
@@ -590,10 +598,10 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                      Type_build_type_string(&left_type_sb,&left_type);
                     StringBuilder right_type_sb = sb_new();
                      Type_build_type_string(&right_type_sb,&right_type);
-                    PANIC("Tried to %s {%s} and {%s} witch are not the same type %s",format_enum(stm->binary_operation.opp_token),left_type_sb.buffer,right_type_sb.buffer,expr_sb.buffer);
+                    PANIC("Tried to %s {%s} and {%s} witch are not the same type %s",format_token_kind(stm->binary_operation.opp_token),left_type_sb.buffer,right_type_sb.buffer,expr_sb.buffer);
                 }
-                stm->binary_operation.type = Type_alloc_type(Type_new(NULL,BOOL_TYPE));
-                return Type_new(NULL,BOOL_TYPE);
+                stm->binary_operation.type = &PRIMITIVE_TYPES[BOOL_TYPE_IDX];
+                return PRIMITIVE_TYPES[BOOL_TYPE_IDX];
 
             // same type and return VOID type
             // (a = a + b) ; type_of( (a = b) ) == VOID
@@ -685,7 +693,8 @@ const char* format_ast_type(AstNode* stm) {
         case AST_EXPRESSION_STATEMENT:  return "AST_EXPRESSION_STATEMENT";
         case AST_BINARY_OPERATION:      return "AST_BINARY_OPERATION";
         case AST_STRUCT_DECLARATION:    return "AST_STRUCT_DECLARATION";
+        case AST_FUNC_CALL:             return "AST_FUNC_CALL";
         default:
-            PANIC("UNKNOWKN AST NODE TYPE");
+            PANIC("%s %d: UNKNOWN AST NODE TYPE",__FILE__,__LINE__);
         }
 }

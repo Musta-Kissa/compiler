@@ -54,6 +54,9 @@ typedef struct Type {
         struct FloatType{
             VariableSize size;
         } float_type;
+        struct BoolType{
+            VariableSize size;
+        } bool_type;
     };
 } Type;
 
@@ -74,6 +77,7 @@ Type Type_get_field_type(Type type,char* field_name);
 const char* Type_format_type_kind(Type type);
 int Type_cmp(Type* type1, Type* type2);
 int Type_is_lvalue(Type* type);
+int Type_size_of(Type* type);
 
 
 #include "my_string.h"
@@ -87,7 +91,7 @@ void Type_build_type_string(StringBuilder* sb, Type* type );
 
 #define PRIMITIVE_TYPES_ARRAY() { \
     {.type_kind = VOID_TYPE, .type_name = "void"}, \
-    {.type_kind = BOOL_TYPE, .type_name = "bool"}, \
+    {.type_kind = BOOL_TYPE, .type_name = "bool", .bool_type.size = BITS_32 }, \
     {.type_kind = INTIGER_TYPE, .type_name = "int", .intiger_type.size = BITS_32 }, \
     {.type_kind = FLOAT_TYPE, .type_name = "float", .float_type.size = BITS_32 }, \
 }; \

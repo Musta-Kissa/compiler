@@ -155,3 +155,16 @@ void Type_build_type_string(StringBuilder* sb, Type* type ){
             PANIC("%s %d:Unhandled Case %s",__FILE__,__LINE__,Type_format_type_kind(*type));
     }
 }
+
+int Type_size_of(Type* type) {
+    switch( type->type_kind ) {
+        case INTIGER_TYPE:
+            return type->intiger_type.size / 8;
+        case FLOAT_TYPE:
+            return type->float_type.size / 8;
+        case BOOL_TYPE:
+            return type->bool_type.size / 8;
+        default:
+            PANIC("%s %d: Not suported",__FILE__,__LINE__);
+    }
+}

@@ -7,13 +7,19 @@
 #define TYPES_NUM  1000
 
 #include <stdint.h>
+#include <stdbool.h>
 #include "parser.h"
 #include "types.h"
+#include "dyn_arrays_macro.h"
 
 typedef struct Variable {
     char* ident;
     Type type;
 } Variable;
+
+typedef struct {
+    make_da(Variable)
+} VariableList;
 
 typedef struct Stack {
     int       frames[FRAMES_NUM];

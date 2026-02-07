@@ -12,7 +12,7 @@
     } \
 }
 
-const char* format_enum(Token k) {
+const char* format_token_kind(Token k) {
     switch(k.kind) {
         //case UNKNOWN_TYPE:          return "UNKNOWN_TYPE";
         //case TYPE:                  return "TYPE";

@@ -1,6 +1,7 @@
 #ifndef PARSER_H
 #define PARSER_H
 
+#include <stdbool.h>
 #include "lexer.h"
 #include "types.h"
 
@@ -10,8 +11,6 @@ typedef enum {
     AST_FUNC_CALL,          
     AST_ARGUMENT,          
     AST_ARGUMENT_DECLARATION,          
-    AST_NUMBER,            
-    AST_STRING,             
     AST_IDENTIFIER,       
     AST_DECLARATION,    
     AST_FUNCTION_DECLARATION,
@@ -24,6 +23,10 @@ typedef enum {
 
     AST_STRUCT_DECLARATION,
     AST_EXTERN_STATEMENT,
+
+    //Values
+    AST_NUMBER,            
+    AST_STRING,             
 } AstNode_Type;
 
 typedef struct TypeInfo {
@@ -48,15 +51,15 @@ typedef struct AstNode {
             Token opp_token;        
             struct AstNode* right; 
         } unary_operation; // TODO implement unary in parser
-        struct FuncCall {
+        struct FunctionCall {
             Token identifier;
             struct AstNode* args; // argument*
         } function_call;   
-        struct Arg {
+        struct Argument {
             struct AstNode* value; // expression_statement*
             struct AstNode* next; // CAN BE NULL
         } argument;
-        struct ArgDecl {
+        struct ArgumentDecl {
             Type* type;
             char* ident;
             struct AstNode* next; // CAN BE NULL
@@ -70,7 +73,7 @@ typedef struct AstNode {
         } string;     
         struct Identifier {
             Type* type;
-            Token token;
+            Token token; // TODO change to char*
         } identifier;
         struct Declaretion {
             Type* type;
