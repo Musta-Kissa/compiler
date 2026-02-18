@@ -3,6 +3,7 @@ section .bss
 
 section .text
     global print_int
+    global allocate_page
 
 ; Procedure: print_int
 ; Input: RDI = integer to print (64-bit, non-negative)
@@ -12,7 +13,10 @@ print_int:
     push rbp
     mov rbp, rsp
 
+    push rax
     push rbx
+    push rdx
+    push rsi
     
     mov rax, [rbp+16]            ; Number to print
     lea rbx, [buffer + 20]  ; Point to end of buffer
@@ -56,11 +60,44 @@ print_int:
     ; RDX already has length (including newline)
     syscall
     
+    pop rsi
+    pop rdx
     pop rbx
+    pop rax
 
     mov rsp, rbp
     pop rbp 
     ret
+
+allocate_page:
+    push rax
+    push rdi
+    push rsi
+    push r10
+    push r8
+    push r9
+    ; mmap syscall: void *mmap(void *addr, size_t length, int prot,
+    ;                          int flags, int fd, off_t offset)
+    ; Syscall number 9 (x86_64)
+    mov rax, 9                  ; sys_mmap
+    xor rdi, rdi                ; addr = NULL (kernel chooses)
+    mov rsi, 4096               ; length = one page (typical page size)
+    mov rdx, 0x3                 ; prot = PROT_READ | PROT_WRITE (1|2 = 3)
+    mov r10, 0x22                ; flags = MAP_PRIVATE | MAP_ANONYMOUS (0x02 | 0x20 = 0x22)
+    mov r8, -1                   ; fd = -1 (ignored for MAP_ANONYMOUS)
+    xor r9, r9                   ; offset = 0
+    syscall
+
+    mov r15, rax                ; return value (pointer or -1) is in rax
+
+    pop r9
+    pop r8
+    pop r10
+    pop rsi
+    pop rdi
+    pop rax
+
+    ret                          
 
 %if 0
 _start:

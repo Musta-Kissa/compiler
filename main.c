@@ -13,7 +13,6 @@
     exit(-1); \
 }
 
-#include "print_ast.h"
 
 int compile(const char *asm_code);
 

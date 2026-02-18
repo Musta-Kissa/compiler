@@ -683,6 +683,7 @@ bool is_lvalue(AstNode* node) {
 }
 const char* format_ast_type(AstNode* stm) {
     switch( stm->type ) {
+        case AST_EXTERN_STATEMENT:      return "AST_EXTERN_STATEMENT";
         case AST_FUNCTION_DECLARATION:  return "AST_FUNCTION_DECLARATION";
         case AST_BLOCK_STATEMENT:       return "AST_BLOCK_STATEMENT";
         case AST_DECLARATION:           return "AST_DECLARATION";

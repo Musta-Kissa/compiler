@@ -71,25 +71,23 @@ void update_vars(VariableInfoList* variables_list, AstNode* stm, int current_lin
         case AST_IDENTIFIER:
             name = stm->identifier.token.value;
             type = stm->identifier.type;
+
+            VariableInfo* variable = find_var(*variables_list,name);
+            variable->last_line_used = current_line;
             break;
         case AST_DECLARATION:
             name = stm->declaration.name;
             type = stm->declaration.type;
+
+            int arg_size = Type_size_of(type);
+            VariableInfo info = {.identifier = name, 
+                                 .first_line_used = current_line, 
+                                 .last_line_used = current_line, 
+                                 .location = NOT_ASSIGNED };
+            da_append_ref(variables_list,info);
             break;
         default:
             PANIC("%s %d: PANICKED",__FILE__,__LINE__);
-    }
-
-    VariableInfo* variable = find_var(*variables_list,name);
-    if( variable != NULL) {
-        variable->last_line_used = current_line;
-    } else {
-        int arg_size = Type_size_of(type);
-        VariableInfo info = {.identifier = name, 
-                             .first_line_used = current_line, 
-                             .last_line_used = current_line, 
-                             .location = NOT_ASSIGNED };
-        da_append_ref(variables_list,info);
     }
 }
 void update_variable_info_with_expression(VariableInfoList* variables_list, AstNode* stm,int current_line) {
@@ -119,13 +117,13 @@ void update_variable_info_with_expression(VariableInfoList* variables_list, AstN
             PANIC("%s %d: NOT SUPPORTED: %s",__FILE__,__LINE__,format_ast_type(stm));
   }
 }
-void analyze_variable_lifetimes(VariableInfoList* variables_list, AstNode* stm, int current_line) {
+int analyze_variable_lifetimes(VariableInfoList* variables_list, AstNode* stm, int current_line) {
     AstNode* next = stm;
     while( next != NULL ) {
         AstNode* curr = next;
         switch(curr->type) {
             case AST_BLOCK_STATEMENT:
-                analyze_variable_lifetimes(variables_list,curr->block_statement.statements,current_line);
+                current_line = analyze_variable_lifetimes(variables_list,curr->block_statement.statements,current_line);
                 next = curr->block_statement.next;
                 break;
             case AST_DECLARATION:
@@ -165,6 +163,7 @@ void analyze_variable_lifetimes(VariableInfoList* variables_list, AstNode* stm, 
                 PANIC("%s %d: NOT SUPPORTED: %s",__FILE__,__LINE__,format_ast_type(curr));
         }
     }
+    return current_line;
 }
 void generate_asm_for_hanging_expression(StringBuilder* sb, AstNode* stm, FunctionContext* context ) {
     //PANIC("%s %d: TODO",__FILE__,__LINE__);
@@ -179,24 +178,7 @@ void generate_asm_for_hanging_expression(StringBuilder* sb, AstNode* stm, Functi
         case AST_BINARY_OPERATION:
             switch( stm->binary_operation.opp_token.kind ) {
                 case ASSIGN:
-                /*
-                case LESS_THEN:
-                case MORE_THEN:
-                case EQUAL:
-                case NOT_EQUAL:
-                case LESS_EQUAL:
-                case MORE_EQUAL:
-                */
-
-                    PANIC("%s %d: TODO",__FILE__,__LINE__);
-                    /*
-                    Register target_register = take_next_available_register(&context->available_registers);
-                    add_register(&context->touched_registers,target_register);
-                    generate_asm_for_expression(sb, stm, context, target_register);
-                    sb_append(sb,"push %s\n",get_register_str(target_register));
-
-                    remove_register(&context->available_registers,target_register);
-                    */
+                    generate_asm_for_expression(sb, stm, context, 0);
                     break;
                 default:
                     generate_asm_for_hanging_expression(sb,stm->binary_operation.right,context);
@@ -242,6 +224,10 @@ void generate_asm_for_function_call(StringBuilder* sb, AstNode* stm, FunctionCon
             case AST_BINARY_OPERATION:
             case AST_UNARY_OPERATION:
                 Register target_register = take_next_available_register(&context->available_registers);
+                if( target_register == 0 ) {
+                    PANIC("%s %d: RUN OUT OF REGISTERS",__FILE__,__LINE__);
+                }
+
                 add_register(&context->touched_registers,target_register);
                 // this puts the value of the expression in the target_register
                 generate_asm_for_expression(sb, curr_expr, context, target_register);
@@ -252,19 +238,15 @@ void generate_asm_for_function_call(StringBuilder* sb, AstNode* stm, FunctionCon
                 break;
             case AST_FUNC_CALL:
                 generate_asm_for_function_call(sb, curr_expr, context);
-                // push r15
                 sb_append(sb,"push r15\n");
                 break;
 
             case AST_STRING:
                 PANIC("%s %d: STRING NOT SUPPORTED",__FILE__,__LINE__);
             case AST_NUMBER:
-                // push NUMBER
                 sb_append(sb,"push %s\n",curr_expr->number.value);
                 break;
             case AST_IDENTIFIER:
-                // Location loc = get_ident_location(IDENTIFIER);
-                // push loc
                 VariableLocation location = get_location_of_variable(context->variables_list,curr_expr->identifier.token.value);
                 sb_append(sb,"push %s\n",get_location_str(location));
                 break;
@@ -282,7 +264,7 @@ Register generate_asm_for_expression(StringBuilder* sb, AstNode* stm, FunctionCo
     }
 
     switch(stm->type) {
-        case AST_BINARY_OPERATION:
+        case AST_BINARY_OPERATION: {
             // check which side is a value, call recursively on the side thats not, 
             // after that "apply" the value to the register that was passed to the value side
             // if both sides arent values then get a new register and pass it on the right side then 
@@ -305,12 +287,17 @@ Register generate_asm_for_expression(StringBuilder* sb, AstNode* stm, FunctionCo
                 case STAR:
                     opp = "imul";
                     break;
+                case ASSIGN:
+                    PANIC("%s %d: TODO",__FILE__,__LINE__);
                 default:
                     PANIC("%s %d: OPERATION NOT SUPPORTED: %s",__FILE__,__LINE__,format_token_kind(stm->binary_operation.opp_token));
             }
 
             if(!right_is_value && !left_is_value) { // have to allocate a new register
                 Register new_register = take_next_available_register(&context->available_registers);
+                if( new_register == 0 ) {
+                    PANIC("%s %d: RUN OUT OF REGISTERS",__FILE__,__LINE__);
+                }
                 add_register(&context->touched_registers,new_register);
 
                 generate_asm_for_expression(sb,left,context, new_register);
@@ -320,8 +307,6 @@ Register generate_asm_for_expression(StringBuilder* sb, AstNode* stm, FunctionCo
                 remove_register(&context->available_registers,new_register);
 
             } else if ( right_is_value && left_is_value ) { // bottom of the tree
-                //sb_append(sb,"mov %s, %s;\n", get_register_str(reg), ast_value_to_str(stm->binary_operation.left));
-                //sb_append(asm_mov_val_to_reg(stm->binary_operation.left,reg));
                 switch(left->type) {
                     case AST_FUNC_CALL:
                         generate_asm_for_function_call(sb,left,context);
@@ -393,11 +378,34 @@ Register generate_asm_for_expression(StringBuilder* sb, AstNode* stm, FunctionCo
 
             }
 
-            break;
-        case AST_UNARY_OPERATION:
+        }   break;
+        case AST_UNARY_OPERATION: {
             PANIC("%s %d: TODO",__FILE__,__LINE__);
-            break;
 
+            /*
+            bool right_is_value = is_value_ast(stm->unary_operation.right);
+            AstNode* right = stm->unary_operation.right;
+
+            TokenKind opp_kind = stm->unary_operation.opp_token.kind;
+            //char* opp;
+
+            if( !right_is_value ) {
+                Register target_register = take_next_available_register(&context->available_registers);
+                if( target_register == 0 ) { PANIC("%s %d: RUN OUT OF REGISTERS",__FILE__,__LINE__); }
+
+                add_register(&context->touched_registers,target_register);
+                // this puts the value of the expression in the target_register
+                generate_asm_for_expression(sb, curr_expr, context, target_register);
+
+
+                remove_register(&context->available_registers,target_register);
+                break;
+            } else {
+
+            }
+            */
+
+        }   break;
         // Values 
         case AST_STRING:
             PANIC("%s %d: STRING NOT SUPPORTED",__FILE__,__LINE__);
@@ -429,8 +437,10 @@ void free_registers_from_later_unused_variables(FunctionContext* context) {
 
         if( variable->location.type != NOT_ASSIGNED && context->current_line > variable->last_line_used ) {
             if( variable->location.type == REGISTER ) {
-                //printf("FREEING REGISTER %s USED FOR VARIABLE %s on line %d\n",get_register_str(variable->location.register_location.register_),variable->identifier,context->current_line);
+                printf("FREEING REGISTER %s USED FOR VARIABLE %s on line %d\n",get_register_str(variable->location.register_location.register_),variable->identifier,context->current_line);
                 add_register(&context->available_registers,variable->location.register_location.register_);
+            } else {
+                printf("FREEING VARIABLE %s with stack offset %d on line %d\n",variable->identifier,variable->location.stack_location.base_offset,context->current_line);
             }
             variable->location.type = NOT_ASSIGNED;
         }
@@ -452,6 +462,9 @@ const char* generate_asm_for_statements(StringBuilder* sb, AstNode* next,Functio
                 //printf("DECLARING %s on line %d\n",curr->declaration.name,context->current_line);
 
                 Register target_register = take_next_available_register(&context->available_registers);
+                if( target_register == 0 ) {
+                    PANIC("%s %d: RUN OUT OF REGISTERS",__FILE__,__LINE__);
+                }
                 add_register(&context->touched_registers,target_register);
 
                 generate_asm_for_expression(sb,
@@ -510,6 +523,169 @@ const char* generate_asm_for_statements(StringBuilder* sb, AstNode* next,Functio
     }
 }
 
+#define MAX_SCOPE_NUMBERS 1000
+#define MAX_SEEN_VARIABLES 1000
+#define MAX_SEEN_VARIABLES_FRAMES 1000
+
+typedef struct {
+    int curr_scope_number;
+    int numbers[1000];
+    int numbers_pointer;
+} ScopeNumbersStack;
+
+typedef struct {
+    int seen_variables_frames[1000];
+    int seen_variables_frames_pointer;
+
+    char* seen_variables[1000];
+    int seen_variables_pointer;
+} SeenVariablesStack;
+
+typedef struct {
+    ScopeNumbersStack numbers_stack;
+    SeenVariablesStack seen_variables_stack;
+} NameManglingContext;
+
+void SeenVariablesStack_new_frame(SeenVariablesStack* stack) {
+    ASSERT((stack->seen_variables_frames_pointer < MAX_SEEN_VARIABLES_FRAMES), "EXCEEDED THE MAXIMUM NUMBER OF SEEN_VARIABLES_FRAMES");
+    stack->seen_variables_frames[stack->seen_variables_frames_pointer++] = stack->seen_variables_pointer;
+}
+void SeenVariablesStack_pop_frame(SeenVariablesStack* stack) {
+    stack->seen_variables_pointer = stack->seen_variables_frames[--stack->seen_variables_frames_pointer];
+}
+void SeenVariablesStack_push(SeenVariablesStack* stack, char* variable) {
+    ASSERT((stack->seen_variables_pointer < MAX_SEEN_VARIABLES), "EXCEEDED THE MAXIMUM NUMBER OF SEEN_VARIABLES");
+    stack->seen_variables[stack->seen_variables_pointer++] = variable;
+}
+
+void ScopeNumbersStack_push(ScopeNumbersStack* stack) {
+    ASSERT((stack->numbers_pointer < MAX_SCOPE_NUMBERS), "EXCEEDED THE MAXIMUM NUMBER OF SCOPE_NUMBERS");
+    stack->numbers[stack->numbers_pointer++] = stack->curr_scope_number++;
+}
+int ScopeNumbersStack_get_number(ScopeNumbersStack* stack) {
+    stack->numbers[stack->numbers_pointer-1];
+}
+void ScopeNumbersStack_pop(ScopeNumbersStack* stack) {
+    stack->numbers_pointer--;
+}
+
+void NameManglingContext_new_scope(NameManglingContext* context) {
+    SeenVariablesStack_new_frame(&context->seen_variables_stack);
+    ScopeNumbersStack_push(&context->numbers_stack);
+}
+void NameManglingContext_pop_scope(NameManglingContext* context) {
+    SeenVariablesStack_pop_frame(&context->seen_variables_stack);
+    ScopeNumbersStack_pop(&context->numbers_stack);
+}
+void NameManglingContext_add_variable_to_current_scope(NameManglingContext* context, char* variable) {
+    SeenVariablesStack_push(&context->seen_variables_stack, variable);
+}
+
+int NameManglingContext_get_scope_number_where_variable_last_seen(NameManglingContext* context, char* variable) {
+    int variable_index;
+    for( variable_index = context->seen_variables_stack.seen_variables_pointer - 1; ; variable_index-- ) {
+        if( strcmp(variable,context->seen_variables_stack.seen_variables[variable_index]) == 0 ) {
+            break;
+        }
+    }
+    int j = context->seen_variables_stack.seen_variables_frames_pointer-1;
+    while(context->seen_variables_stack.seen_variables_frames[j] > variable_index) {
+        j--;
+    }
+    int scope_number = context->numbers_stack.numbers[j];
+    return scope_number;
+}
+
+void mangle_variable(NameManglingContext* context, char** variable) {
+    int scope_number = NameManglingContext_get_scope_number_where_variable_last_seen(context, *variable);
+    StringBuilder sb = sb_new();
+    sb_append(&sb,"scope%d_%s",scope_number,*variable);
+    *variable = sb.buffer;
+}
+
+void mangle_expression(NameManglingContext* context, AstNode* stm) {
+    switch(stm->type) {
+        case AST_UNARY_OPERATION:
+            mangle_expression(context,stm->unary_operation.right);
+            return;
+        case AST_BINARY_OPERATION:
+            mangle_expression(context,stm->binary_operation.right);
+            mangle_expression(context,stm->binary_operation.left);
+            return;
+        case AST_IDENTIFIER:
+            mangle_variable(context,&stm->identifier.token.value);
+            return;
+        case AST_FUNC_CALL:
+            AstNode* next = stm->function_call.args;
+            while(next != NULL) {
+                AstNode* arg = next->argument.value->expression_statement.expression;
+                mangle_expression(context,arg);
+                next = next->argument.next;
+            }
+            return;
+        case AST_NUMBER:
+        case AST_STRING:
+            return;
+        case AST_EXPRESSION_STATEMENT:
+            mangle_expression(context,stm->expression_statement.expression);
+            return;
+        default:
+            PANIC("%s %d: NOT SUPPORTED: %s",__FILE__,__LINE__,format_ast_type(stm));
+    }
+}
+
+void mangle_names_inner(AstNode* stm, NameManglingContext* stack);
+void mangle_names(AstNode* stm) {
+    ASSERT(stm->type == AST_BLOCK_STATEMENT, "%s %d: PANICKED",__FILE__,__LINE__);
+
+    NameManglingContext stack = {0}; 
+    mangle_names_inner(stm,&stack);
+}
+
+void mangle_names_inner(AstNode* stm, NameManglingContext* context) {
+    AstNode* next = stm;
+    while( next != NULL ) {
+        AstNode* curr = next;
+        switch(curr->type) {
+            case AST_BLOCK_STATEMENT:
+                NameManglingContext_new_scope(context);
+                mangle_names_inner(curr->block_statement.statements, context);
+                NameManglingContext_pop_scope(context);
+                next = curr->block_statement.next;
+                break;
+            case AST_DECLARATION:
+                mangle_expression(context,curr->declaration.value);
+                NameManglingContext_add_variable_to_current_scope(context,curr->declaration.name);
+                mangle_variable(context,&curr->declaration.name);
+                next = curr->declaration.next;
+                break;
+            case AST_EXPRESSION_STATEMENT:
+                mangle_expression(context,curr->expression_statement.expression);
+                next = next->expression_statement.next;
+                break;
+            case AST_RETURN_STATEMENT:
+                mangle_expression(context,curr->return_statement.expression);
+                next = next->return_statement.next;
+                break;
+            case AST_IF_STATEMENT:
+                PANIC("%s %d: TODO",__FILE__,__LINE__);
+                next = next->if_statement.next;
+                break;
+            case AST_FOR_STATEMENT:
+                PANIC("%s %d: TODO",__FILE__,__LINE__);
+                next = next->for_statement.next;
+                break;
+            case AST_WHILE_STATEMENT:
+                PANIC("%s %d: TODO",__FILE__,__LINE__);
+                next = next->while_statement.next;
+                break;
+            default:
+                PANIC("%s %d: NOT SUPPORTED: %s",__FILE__,__LINE__,format_ast_type(curr));
+        }
+    }
+}
+
+#include "print_ast.h"
 const char* generate_asm_for_function(AstNode* stm){
     StringBuilder sb = sb_new();
     VariableInfoList variables_list = {0};
@@ -538,6 +714,13 @@ const char* generate_asm_for_function(AstNode* stm){
     }
     int curr_line = 1;
 
+    print_program_ast(stm);
+
+    printf("================================== MANGLING =======================================\n"); 
+    mangle_names(stm->function_declaration.body);
+
+    print_program_ast(stm);
+
     analyze_variable_lifetimes(&variables_list,stm->function_declaration.body,1);
 
     /*
@@ -564,7 +747,7 @@ const char* generate_asm_for_function(AstNode* stm){
     */
 
     StringBuilder statements_asm_sb = sb_new();
-    FunctionContext context = { .touched_registers = {0}, .available_registers = {~0 - R15}, .variables_list = variables_list, .current_line = 1 };
+    FunctionContext context = { .touched_registers = {0}, .available_registers = {~0 - R15 - RSP - RBP}, .variables_list = variables_list, .current_line = 1 };
 
     generate_asm_for_statements(&statements_asm_sb,stm->function_declaration.body,&context);
 
@@ -585,17 +768,6 @@ const char* generate_asm_for_function(AstNode* stm){
         } 
     }
 
-    // TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP
-
-    /*
-    sb_append(&sb,"%s",statements_asm_sb.buffer);
-    print_all_regs(context.available_registers);
-    print_all_regs(context.touched_registers);
-    */
-
-    // TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP TEMP
-    
-
     // Stack frame cleanup; same as leave
     sb_append(&sb,"mov rsp, rbp\n");
     sb_append(&sb,"pop rbp \n");
@@ -606,8 +778,32 @@ const char* generate_asm_for_function(AstNode* stm){
     return sb.buffer;
 }
 
-CStringList generate_asm_for_all_functions(AstNode* stm) {
-    CStringList list = {0};
+void generate_asm_for_extern_statements(StringBuilder* sb, AstNode* stm) {
+    AstNode* next = stm;
+    while( next != NULL ) {
+        switch( next->type ) {
+            case AST_BLOCK_STATEMENT:
+                next = next->block_statement.statements;
+                break;
+            case AST_FUNCTION_DECLARATION:
+                sb_append(sb, "extern %s\n", next->function_declaration.name);
+                next = next->function_declaration.next;
+                break;
+            default:
+                PANIC("%s %d: SHOULD NOT BE POSSIBLE %s", __FILE__,__LINE__, format_ast_type(next));
+        }
+    }
+}
+ 
+typedef struct {
+    CStringList functions_asm_list;
+    StringBuilder extern_asm;
+    CStringList global_declarations_asm_list;
+} TopLevelStatemetnsAsm;
+
+TopLevelStatemetnsAsm generate_asm_for_top_level_statements(AstNode* stm) {
+    TopLevelStatemetnsAsm list = {0};
+    list.extern_asm = sb_new();
 
     AstNode* next = stm;
     while( next != NULL ) {
@@ -615,7 +811,7 @@ CStringList generate_asm_for_all_functions(AstNode* stm) {
         switch( next->type ) { /* ALL POSSIBLE TOP LEVEL STATEMENTS */
             case AST_FUNCTION_DECLARATION:
                 asm_str = generate_asm_for_function(next); 
-                da_append(list,asm_str);
+                da_append(list.functions_asm_list,asm_str);
 
                 next = next->function_declaration.next;
                 break;
@@ -630,6 +826,7 @@ CStringList generate_asm_for_all_functions(AstNode* stm) {
                 next = next->struct_declaration.next;
                 break;
             case AST_EXTERN_STATEMENT:    
+                generate_asm_for_extern_statements(&list.extern_asm, next->extern_statement.body);
                 next = next->extern_statement.next;
                 break;
             default:
@@ -641,6 +838,7 @@ CStringList generate_asm_for_all_functions(AstNode* stm) {
 
 char* generate_asm(AstNode* node) {
     StringBuilder output_sb = sb_new();
+    /*
     const char *gnu_header = 
         ".intel_syntax noprefix\n"
         ".text\n"
@@ -656,6 +854,7 @@ char* generate_asm(AstNode* node) {
         "syscall\n"
         "# ===================== end of HEADER =================================\n"
     ;
+    */
 
     const char *nasm_header = 
         "section .text\n"
@@ -670,13 +869,17 @@ char* generate_asm(AstNode* node) {
         "xor edi, edi\n"//    # status: 0
         "syscall\n"
 
-        "extern print_int\n"
         "; ===================== end of HEADER =================================\n"
     ;
 
 
     sb_append(&output_sb,nasm_header);
-    CStringList function_defs = generate_asm_for_all_functions(node);
+    TopLevelStatemetnsAsm top_level_defs = generate_asm_for_top_level_statements(node);
+    CStringList function_defs = top_level_defs.functions_asm_list;
+
+    sb_append(&output_sb,top_level_defs.extern_asm.buffer);
+    sb_append(&output_sb,"; ===================== end of EXTERN =================================\n");
+
     for(int i = 0; i < function_defs.count; i++) {
         sb_append(&output_sb,function_defs.items[i]);
     }
