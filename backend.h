@@ -1,3 +1,6 @@
+#ifndef BACKEND_H
+#define BACKEND_H
+
 #include "parser.h"
 #include "types.h"
 #include "my_string.h"
@@ -24,8 +27,6 @@ typedef struct {
 
 typedef struct {
     const char* identifier;
-    int first_line_used;
-    int last_line_used;
     VariableLocation location;
 } VariableInfo;
 
@@ -37,8 +38,12 @@ typedef struct {
     Registers touched_registers;
     Registers available_registers;
     VariableInfoList variables_list;
-    int current_line;
+    int return_label_number;
 } FunctionContext;
+
+typedef struct {
+    int curr_label_number;
+} ProgramContext;
 
 typedef struct {
     make_da(AstNode*)
@@ -47,5 +52,13 @@ typedef struct {
 const char* generate_asm_for_function(AstNode* stm); 
 
 void generate_asm_for_function_call(StringBuilder* sb, AstNode* stm, FunctionContext* context);
-Register generate_asm_for_expression(StringBuilder* sb, AstNode* stm, FunctionContext* context, Register target_register);
+void generate_asm_for_expression(StringBuilder* sb, AstNode* stm, FunctionContext* context, Register target_register);
 char* generate_asm(AstNode* program);
+bool is_value_ast(AstNode* stm);
+char* handle_value(StringBuilder* sb, AstNode* stm, FunctionContext* context);
+const VariableLocation get_location_of_variable(const VariableInfoList variables_list, const char* variable_identifier);
+char* get_location_str(VariableLocation location);
+void generate_asm_for_statements(StringBuilder* sb, AstNode* next,FunctionContext* context);
+
+
+#endif

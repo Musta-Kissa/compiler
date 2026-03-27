@@ -164,6 +164,8 @@ int Type_size_of(Type* type) {
             return type->float_type.size / 8;
         case BOOL_TYPE:
             return type->bool_type.size / 8;
+        case POINTER_TYPE:
+            return 8;
         default:
             PANIC("%s %d: Not suported",__FILE__,__LINE__);
     }

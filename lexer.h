@@ -76,6 +76,7 @@ Token Lexer_peek_back(Lexer* lexer);
 
 int is_terminal(char c);
 Lexer lex_file(String string);
-const char* format_token_kind(Token k);
+const char* format_token(Token k);
+const char* format_token_kind(TokenKind k);
 
 #endif

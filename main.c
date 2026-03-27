@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
     /*
     for( int n = 0; lexer.tokens[n-1].kind != EOF_TOKEN ; n++) {
         Token t = lexer.tokens[n];
-        printf("%d: %s ",n,format_token_kind(t));
+        printf("%d: %s ",n,format_token(t));
         switch(t.kind) {
             case IDENT: 
             case NUMBER:

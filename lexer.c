@@ -12,8 +12,12 @@
     } \
 }
 
-const char* format_token_kind(Token k) {
-    switch(k.kind) {
+const char* format_token(Token k) {
+    return format_token_kind(k.kind);
+}
+
+const char* format_token_kind(TokenKind k) {
+    switch(k) {
         //case UNKNOWN_TYPE:          return "UNKNOWN_TYPE";
         //case TYPE:                  return "TYPE";
         case IDENT:                 return "IDENT";

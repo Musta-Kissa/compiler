@@ -120,6 +120,7 @@ void analyze_if(AstNode* stm) {
     }
 
     analyze_statements(stm->if_statement.body);
+    analyze_statements(stm->if_statement.else_block);
 }
 
 void analyze_function_decl(AstNode* stm) {
@@ -537,6 +538,7 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                      Type_build_type_string(&type_sb,&type);
                     PANIC("got {%s} but lvalue required as '&' operand %s",type_sb.buffer,expr_sb.buffer);
                 }
+
                 stm->unary_operation.is_lvalue = false;
                 Type ptr_type = Type_new(NULL,POINTER_TYPE);
                 ptr_type.pointer_type.sub_type = (Type*)malloc(sizeof(Type));
@@ -573,7 +575,7 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
                 right_type = analyze_expr_statement_inner(stm->binary_operation.right);
                 if( Type_cmp(&left_type,&right_type) != 1) {
-                    PANIC("Tried to %s {%s} and {%s} witch are not the same type",format_token_kind(stm->binary_operation.opp_token),left_type.type_name,right_type.type_name);
+                    PANIC("Tried to %s {%s} and {%s} witch are not the same type",format_token(stm->binary_operation.opp_token),Type_format_type_kind(left_type),Type_format_type_kind(right_type));
                 }
                 stm->binary_operation.type = Type_alloc_type(left_type);
                 return left_type;
@@ -598,7 +600,7 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                      Type_build_type_string(&left_type_sb,&left_type);
                     StringBuilder right_type_sb = sb_new();
                      Type_build_type_string(&right_type_sb,&right_type);
-                    PANIC("Tried to %s {%s} and {%s} witch are not the same type %s",format_token_kind(stm->binary_operation.opp_token),left_type_sb.buffer,right_type_sb.buffer,expr_sb.buffer);
+                    PANIC("Tried to %s {%s} and {%s} witch are not the same type %s",format_token(stm->binary_operation.opp_token),left_type_sb.buffer,right_type_sb.buffer,expr_sb.buffer);
                 }
                 stm->binary_operation.type = &PRIMITIVE_TYPES[BOOL_TYPE_IDX];
                 return PRIMITIVE_TYPES[BOOL_TYPE_IDX];
@@ -667,9 +669,9 @@ Type analyze_expr_statement_inner(AstNode* stm) {
 
 bool is_lvalue(AstNode* node) {
     switch(node->type) {
-        case AST_NUMBER:
         case AST_IDENTIFIER:
             return 1;
+        case AST_NUMBER:
         case AST_STRING:
         case AST_FUNC_CALL:
             return 0;

@@ -1,0 +1,26 @@
+/* STACK LAYOUT
+ *
+ * arg 3            <- base ptr+32  ^
+ * arg 2            <- base ptr+24  | caller function 
+ * arg 1            <- base ptr+16  |
+ * return addr                      v
+ * saved base ptr   <- base ptr     ^
+ * var 1            <- base ptr-8   |  called function
+ * var 2            <- base ptr-16  |
+ * var 3            <- base ptr-24  v
+ *
+*/
+
+/*
+ *  Non-Volotile registers: R8..R15
+ * 
+ *  Volotile registers: The rest
+*/
+
+/*
+ * ABI
+ * non volatile registers used for storing calculations: R8..R15
+ * the rest are
+ * volatile registers used for geting results from operations such as idiv
+ * and returning values from fcalls (rax)
+*/

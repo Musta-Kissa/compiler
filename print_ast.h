@@ -102,7 +102,7 @@ void print_expr(AstNode* expr) {
             case ASSIGN:
                 printf("="); break;
             default: 
-                PANIC("Oparation printing not supported: %s %s",format_token_kind(expr->binary_operation.opp_token),expr->binary_operation.opp_token.value);
+                PANIC("Oparation printing not supported: %s %s",format_token(expr->binary_operation.opp_token),expr->binary_operation.opp_token.value);
         }
         printf(" "); 
         print_expr(expr->binary_operation.left);

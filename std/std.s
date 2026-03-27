@@ -1,3 +1,5 @@
+default rel
+
 section .bss
     buffer: resb 21
 
@@ -70,9 +72,9 @@ print_int:
     ret
 
 allocate_page:
-    push rax
-    push rdi
-    push rsi
+    ;push rax
+    ;push rdi
+    ;push rsi
     push r10
     push r8
     push r9
@@ -88,15 +90,14 @@ allocate_page:
     xor r9, r9                   ; offset = 0
     syscall
 
-    mov r15, rax                ; return value (pointer or -1) is in rax
+    ;mov r15, rax                ; return value (pointer or -1) is in rax
 
     pop r9
     pop r8
     pop r10
-    pop rsi
-    pop rdi
-    pop rax
-
+    ;pop rsi
+    ;pop rdi
+    ;pop rax
     ret                          
 
 %if 0
