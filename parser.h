@@ -39,18 +39,20 @@ typedef struct AstNode {
     AstNode_Type type;            
     union {
         struct BinaryOperation {
+            Type* return_type;
+            Type* op_type;
             bool is_lvalue;
-            Type* type;
             Token opp_token;        
             struct AstNode* left; 
             struct AstNode* right; 
         } binary_operation;
         struct UnaryOperation {
+            Type* return_type;
+            Type* op_type;
             bool is_lvalue;
-            Type* type;
             Token opp_token;        
             struct AstNode* right; 
-        } unary_operation; // TODO implement unary in parser
+        } unary_operation; 
         struct FunctionCall {
             Token identifier;
             struct AstNode* args; // argument*

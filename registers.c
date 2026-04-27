@@ -1,20 +1,19 @@
 #include <stdint.h>
 #include <stdio.h>
+#include "types.h"
 #include "registers.h"
 
-Registers Registers_new() {
-    return ~(u16)0;
+#include "stdlib.h"
+#define PANIC(fmt, ...) { \
+    printf("%s %d: " "\033[1;31m" fmt "\033[0m" "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
+    *(int*)0=0;\
+    exit(-1); \
 }
 
-// assuming the str is no longer then 4 chars
-u64 encode_string(const char *str) {
-    u64 encoded = 0;
-    for(int i = 0; str[i] != '\0' ; i++){
-        encoded |= (uint64_t)(unsigned char)str[i]; 
-        encoded <<= 8;
-    }
-    return encoded;
+Registers Registers_new() {
+    return ~(u32)0;
 }
+
 
 char* get_register_str(Register reg) {
     switch( reg ){
@@ -35,7 +34,35 @@ char* get_register_str(Register reg) {
         case R13: return "r13";
         case R14: return "r14";
         case R15: return "r15";
+
+        case XMM0: return "XMM0";
+        case XMM1: return "XMM1";
+        case XMM2: return "XMM2";
+        case XMM3: return "XMM3";
+        case XMM4: return "XMM4";
+        case XMM5: return "XMM5";
+        case XMM6: return "XMM6";
+        case XMM7: return "XMM7";
+        case XMM8: return "XMM8";
+        case XMM9: return "XMM9";
+        case XMM10: return "XMM10";
+        case XMM11: return "XMM11";
+        case XMM12: return "XMM12";
+        case XMM13: return "XMM13";
+        case XMM14: return "XMM14";
+        case XMM15: return "XMM15";
     }
+}
+
+/*
+// assuming the str is no longer then 4 chars
+u64 encode_string(const char *str) {
+    u64 encoded = 0;
+    for(int i = 0; str[i] != '\0' ; i++){
+        encoded |= (uint64_t)(unsigned char)str[i]; 
+        encoded <<= 8;
+    }
+    return encoded;
 }
 Register register_from_str(char* reg_str) {
     u64 encoded_str = encode_string(reg_str);
@@ -49,6 +76,7 @@ Register register_from_str(char* reg_str) {
         case 1919183104: return RDI;
         case 1920167936: return RSP;
         case 1919053824: return RBP;
+
         case 7485440:    return R8;
         case 7485696:    return R9;
         case 1915826176: return R10;
@@ -59,6 +87,7 @@ Register register_from_str(char* reg_str) {
         case 1915827456: return R15;
     }
 }
+*/
 
 Register take_next_available_register(Registers* regs) {
     if( regs == 0 ) return 0;
@@ -71,6 +100,35 @@ Register take_next_available_register(Registers* regs) {
         }
     }
     return 0;
+}
+
+Register take_next_available_register_for_type(Registers* regs, Type* type) {
+    if( regs == 0 ) return 0;
+
+    switch( type->type_kind ) {
+        case POINTER_TYPE:
+        case INTIGER_TYPE: {
+            for(int i = 0; i < 16; i++) {
+                Register reg = (Register)(1 << i);
+                if( (*regs & reg) != 0) {
+                    *regs &= ~reg;
+                    return reg;
+                }
+            }
+            return 0;
+        }
+        case FLOAT_TYPE: {
+            for(int i = 16; i < 32; i++) {
+                Register reg = (Register)(1 << i);
+                if( (*regs & reg) != 0) {
+                    *regs &= ~reg;
+                    return reg;
+                }
+            }
+            return 0;
+        }
+        default: PANIC("TYPE NOT SUPPORTED");
+    }
 }
 
 inline void remove_register(Registers* regs, Register reg) {

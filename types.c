@@ -13,24 +13,25 @@
 }
 
 #define PANIC(fmt, ...) { \
-    printf(fmt "\n", ##__VA_ARGS__); \
+    printf("\033[1;31m" fmt "\033[0m" "\n", ##__VA_ARGS__); \
+    __builtin_trap(); \
     exit(-1); \
 }
 
 Type Type_new(char* type_name, TypeKind type_kind) {
     return (Type){ .type_name=type_name,.type_kind=type_kind };
 }
-Type Type_get_field_type(Type type,char* field_name) {
-    ASSERT( (type.type_kind == STRUCT_TYPE), "Expected STRUCT_TYPE");
+Type* Type_get_field_type(Type* type,char* field_name) {
+    ASSERT( (type->type_kind == STRUCT_TYPE), "Expected STRUCT_TYPE");
 
-    FieldListNode* curr = type.struct_type.fields;
+    FieldListNode* curr = type->struct_type.fields;
     while( curr != NULL ) {
         if( strcmp(curr->name,field_name) == 0 ) {
             return curr->type;
         }
         curr = curr->next;
     }
-    PANIC("Field not found '%s' in struct {%s}",field_name,type.type_name);
+    PANIC("Field not found '%s' in struct {%s}",field_name,type->type_name);
 }
 
 const char* Type_format_type_kind(Type type) {
@@ -127,7 +128,7 @@ void Type_build_type_string(StringBuilder* sb, Type* type ){
             sb_append(sb,"( ");
             if( arg != NULL ) {
                 while(1) {
-                    Type_build_type_string(sb,&arg->type);
+                    Type_build_type_string(sb,arg->type);
                     arg = arg->next; 
                     if( arg == NULL) 
                         break;

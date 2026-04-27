@@ -14,12 +14,18 @@
 
 typedef struct Variable {
     char* ident;
-    Type type;
+    Type* type;
 } Variable;
 
+/*
 typedef struct {
     make_da(Variable)
 } VariableList;
+
+typedef struct {
+    make_da(Type)
+} TypeList;
+*/
 
 typedef struct Stack {
     int       frames[FRAMES_NUM];
@@ -50,9 +56,9 @@ void Stack_pop_frame(Stack* stk);
 void Stack_append(Stack* stk, Variable var);
 AnalyzeStatementsReturn analyze_statements(AstNode* stm);
 void analyze_program_ast(AstNode* ast);
-Type analyze_expr_statement_inner(AstNode* stm);
-Type analyze_expr_statement(AstNode* stm);
-Type analyze_func_call(AstNode* stm);
+Type* analyze_expr_statement_inner(AstNode* stm);
+Type* analyze_expr_statement(AstNode* stm);
+Type* analyze_func_call(AstNode* stm);
 void analyze_func_call_args(AstNode* stm);
 int type_is_impl(const char* type, ...);
 Type create_type_from_ast_node(AstNode* node); // Depricated

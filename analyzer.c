@@ -6,7 +6,6 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-const Type PRIMITIVE_TYPES[] = PRIMITIVE_TYPES_ARRAY();
 Type* CURR_EXPECTED_RETURN_TYPES[NESTED_FUNCTIONS];
 int CURR_EXPECTED_RETURN_TYPE_IDX = 0;
 
@@ -21,7 +20,7 @@ bool IS_IN_EXTERN_BLOCK = false;
 
 #define PANIC(fmt, ...) { \
     printf("\033[1;31m" fmt "\033[0m" "\n", ##__VA_ARGS__); \
-    *(int*)0 = 0; \
+    __builtin_trap(); \
     exit(-1); \
 }
 
@@ -29,13 +28,20 @@ Analyzer anlz;
 int get_type_err; // 0 - OK , -1 - NOT FOUND
 
 void Analyzer_init() {
+    const Type PRIMITIVE_TYPES[] = PRIMITIVE_TYPES_ARRAY();
+
     Analyzer analyzer;
         analyzer.declared_vars = Stack_new();
         analyzer.types_idx = sizeof(PRIMITIVE_TYPES) / sizeof(PRIMITIVE_TYPES[0]);
+
     for (size_t i = 0; i < analyzer.types_idx; i++) {
         analyzer.types[i] = PRIMITIVE_TYPES[i];
     }
     anlz = analyzer;
+}
+Type* Analyzer_alloc_type(Type type) {
+    anlz.types[anlz.types_idx] = type;
+    return &anlz.types[anlz.types_idx++];
 }
 Type Analyzer_get_type(char* type_name,int* err) {
     for( int i = 0 ; i < anlz.types_idx ; i++ ) {
@@ -48,7 +54,7 @@ Type Analyzer_get_type(char* type_name,int* err) {
     *err = -1;
     //PANIC("%s %d: Type not found in Analyzer_get_type(): %s",__FILE__,__LINE__,type_name);
 }
-Variable Variable_new(Type type, char* ident) {
+Variable Variable_new(Type* type, char* ident) {
     Variable var;
         var.ident = ident;
         var.type  = type;
@@ -108,14 +114,14 @@ void analyze_if(AstNode* stm) {
         PANIC("'if' statement in global scope");
     }
     ASSERT( (stm->if_statement.condition->type == AST_EXPRESSION_STATEMENT), "Expression statement expected as IF condition");
-    Type condition_type = analyze_expr_statement(stm->if_statement.condition);
+    Type* condition_type = analyze_expr_statement(stm->if_statement.condition);
 
-    if(condition_type.type_kind != BOOL_TYPE ){
+    if(condition_type->type_kind != BOOL_TYPE ){
         StringBuilder expr_sb = sb_new();
         print_expr_to_sb(&expr_sb,stm->if_statement.condition->expression_statement.expression);
 
         StringBuilder condition_type_sb = sb_new();
-         Type_build_type_string(&condition_type_sb,&condition_type);
+         Type_build_type_string(&condition_type_sb,condition_type);
         PANIC("Expression statement has to evaluate to BOOL_TYPE, got: {%s} '%s'",condition_type_sb.buffer,expr_sb.buffer);
     }
 
@@ -132,10 +138,10 @@ void analyze_function_decl(AstNode* stm) {
 
     analyze_type(stm->function_declaration.return_type);
 
-    Type func_type = Type_new(ident,FUNCTION_TYPE);
-    func_type.function_type.return_type = stm->function_declaration.return_type;
+    Type* func_type = Analyzer_alloc_type(Type_new(ident,FUNCTION_TYPE));
+    func_type->function_type.return_type = stm->function_declaration.return_type;
 
-    CURR_EXPECTED_RETURN_TYPES[CURR_EXPECTED_RETURN_TYPE_IDX++] = func_type.function_type.return_type;
+    CURR_EXPECTED_RETURN_TYPES[CURR_EXPECTED_RETURN_TYPE_IDX++] = func_type->function_type.return_type;
 
     Variable function_var = Variable_new(func_type,ident);
 
@@ -144,10 +150,10 @@ void analyze_function_decl(AstNode* stm) {
     }
     
     if( stm->function_declaration.args == NULL ) {
-        function_var.type.function_type.arg_types = NULL;
+        function_var.type->function_type.arg_types = NULL;
     } else {
         TypeListNode* curr = (TypeListNode*)malloc(sizeof(TypeListNode));
-        function_var.type.function_type.arg_types = curr; 
+        function_var.type->function_type.arg_types = curr; 
      
         AstNode* declared_arg = stm->function_declaration.args;
         while(1) { // Typing argument declarations
@@ -155,7 +161,7 @@ void analyze_function_decl(AstNode* stm) {
             char* ident = declared_arg->argument_decl.ident;
 
             analyze_type(declared_arg->argument_decl.type);
-            Type decl_arg_type = *declared_arg->argument_decl.type;
+            Type* decl_arg_type = declared_arg->argument_decl.type;
             
             declared_arg = declared_arg->argument_decl.next;
             
@@ -173,7 +179,7 @@ void analyze_function_decl(AstNode* stm) {
     Stack_new_frame(&anlz.declared_vars);
 
     AstNode*      arg           = stm->function_declaration.args;
-    TypeListNode* arg_type_node = function_var.type.function_type.arg_types;
+    TypeListNode* arg_type_node = function_var.type->function_type.arg_types;
 
     while( arg != NULL ) { // Adding function args to the function scope
         char* ident = arg->argument_decl.ident;
@@ -187,8 +193,8 @@ void analyze_function_decl(AstNode* stm) {
 
     // analyze fn body
     AnalyzeStatementsReturn info = analyze_statements(stm->function_declaration.body->block_statement.statements); 
-    if( !info.encountered_return && func_type.function_type.return_type->type_kind != VOID_TYPE && !IS_IN_EXTERN_BLOCK) {
-        printf("WARNING: Function that has non void return type that doesnt have a return statement: %s\n",func_type.type_name);
+    if( !info.encountered_return && func_type->function_type.return_type->type_kind != VOID_TYPE && !IS_IN_EXTERN_BLOCK) {
+        printf("WARNING: Function that has non void return type that doesnt have a return statement: %s\n",func_type->type_name);
     }
     Stack_pop_frame(&anlz.declared_vars);
     CURR_EXPECTED_RETURN_TYPE_IDX--;
@@ -205,8 +211,8 @@ void analyze_decl(AstNode* stm) {
         PANIC("Redefinition of a var: %s",var_ident);
     }
 
-    Type expr_type;
-    Type declared_type;
+    Type* expr_type;
+    Type* declared_type;
 
     if( stm->declaration.type == NULL ){
         if( stm->declaration.value->expression_statement.expression == NULL ) {
@@ -219,7 +225,7 @@ void analyze_decl(AstNode* stm) {
     } else {
         int err = analyze_type(stm->declaration.type);
 
-        declared_type = *stm->declaration.type;
+        declared_type = stm->declaration.type;
 
         if( stm->declaration.value->expression_statement.expression == NULL ) {
             // 0 == ok, 1== arr len not specified
@@ -230,15 +236,15 @@ void analyze_decl(AstNode* stm) {
             // banana :int = "HELLO";
             expr_type = analyze_expr_statement(stm->declaration.value);
             // allowed 1,3
-            int type_cmp_err = Type_cmp(&declared_type,&expr_type);
+            int type_cmp_err = Type_cmp(declared_type,expr_type);
             if( type_cmp_err != 1 && type_cmp_err != 3) {
                 StringBuilder expr_sb = sb_new();
                  print_expr_to_sb(&expr_sb,stm->declaration.value->expression_statement.expression);
 
                 StringBuilder decl_type_sb = sb_new();
-                 Type_build_type_string(&decl_type_sb,&declared_type);
+                 Type_build_type_string(&decl_type_sb,declared_type);
                 StringBuilder expr_type_sb = sb_new();
-                 Type_build_type_string(&expr_type_sb,&expr_type);
+                 Type_build_type_string(&expr_type_sb,expr_type);
 
                 PANIC("Type specified in the declaration of var '%s' {%s} doesnt match the type of the expr provided: {%s} %s" ,
                            var_ident, 
@@ -249,8 +255,7 @@ void analyze_decl(AstNode* stm) {
         }
     }
 
-    stm->declaration.type = (Type*)malloc(sizeof(Type));
-    *stm->declaration.type = expr_type;
+    stm->declaration.type = expr_type;
 
     Variable var = Variable_new(expr_type,var_ident);
     Stack_append(&anlz.declared_vars,var);
@@ -266,7 +271,7 @@ void analyze_for(AstNode* stm) {
     //ASSERT((stm->for_statement.iteration->type == AST_EXPRESSION_STATEMENT), "Expected Expression In For Iteration");
 
     analyze_statements(stm->for_statement.initial);
-    ASSERT((analyze_expr_statement(stm->for_statement.condition).type_kind == BOOL_TYPE), "For Condition expression has to return a bool");
+    ASSERT((analyze_expr_statement(stm->for_statement.condition)->type_kind == BOOL_TYPE), "For Condition expression has to return a bool");
     analyze_statements(stm->for_statement.iteration);
 
     analyze_statements(stm->for_statement.body->block_statement.statements); 
@@ -277,26 +282,26 @@ void analyze_while(AstNode* stm) {
         PANIC("'while' statement in global scope");
     }
     ASSERT((stm->while_statement.condition->type == AST_EXPRESSION_STATEMENT), "Expected an expression in while condition");
-    ASSERT((analyze_expr_statement(stm->while_statement.condition).type_kind == BOOL_TYPE),"While Condition expression has to return a bool"); 
+    ASSERT((analyze_expr_statement(stm->while_statement.condition)->type_kind == BOOL_TYPE),"While Condition expression has to return a bool"); 
     analyze_statements(stm->while_statement.body);
 }
 void analyze_return(AstNode* stm) {
     if( anlz.declared_vars.frames_idx <= 1 ) {
         PANIC("'return' statement in global scope");
     }
-    Type type;
+    Type* type;
     if( stm->return_statement.expression == NULL ) {
-        type = PRIMITIVE_TYPES[VOID_TYPE_IDX];
+        type = &anlz.types[VOID_TYPE_IDX];
     } else { 
         ASSERT( (stm->return_statement.expression->type == AST_EXPRESSION_STATEMENT), "Expected expression statement in return statement");
         type = analyze_expr_statement(stm->return_statement.expression);
     }
 
-    if( !Type_cmp(&type,CURR_EXPECTED_RETURN_TYPES[CURR_EXPECTED_RETURN_TYPE_IDX-1]) ) {
+    if( !Type_cmp(type,CURR_EXPECTED_RETURN_TYPES[CURR_EXPECTED_RETURN_TYPE_IDX-1]) ) {
         StringBuilder decl_type_sb = sb_new();
          Type_build_type_string(&decl_type_sb,CURR_EXPECTED_RETURN_TYPES[CURR_EXPECTED_RETURN_TYPE_IDX-1]);
         StringBuilder expr_type_sb = sb_new();
-         Type_build_type_string(&expr_type_sb,&type);
+         Type_build_type_string(&expr_type_sb,type);
         PANIC("Wrong type in return statement {%s}, expected {%s} ",expr_type_sb.buffer, decl_type_sb.buffer);
     }
 }
@@ -402,13 +407,12 @@ int analyze_type(Type* type) {
     return err;
 }
 // returns the type of the analyzed expr
-Type analyze_expr_statement(AstNode* stm) {
-    Type type = analyze_expr_statement_inner(stm->expression_statement.expression);
-    stm->expression_statement.type = (Type*)malloc(sizeof(Type));
-    *stm->expression_statement.type = type;
+Type* analyze_expr_statement(AstNode* stm) {
+    Type* type = analyze_expr_statement_inner(stm->expression_statement.expression);
+    stm->expression_statement.type = type;
     return type;
 }
-Type analyze_function_call(AstNode* stm) {
+Type* analyze_function_call(AstNode* stm) {
     if( anlz.declared_vars.frames_idx <= 1 ) {
         PANIC("'function call' statement in global scope");
     }
@@ -418,31 +422,31 @@ Type analyze_function_call(AstNode* stm) {
         PANIC("Use of undeclered function: %s",ident);
     } else {
         var = Stack_get(&anlz.declared_vars, ident);
-        if( var.type.type_kind != FUNCTION_TYPE ) {
-            PANIC("Tried to call variable '%s' of type {%s} as a function",var.ident,var.type.type_name);
+        if( var.type->type_kind != FUNCTION_TYPE ) {
+            PANIC("Tried to call variable '%s' of type {%s} as a function",var.ident,var.type->type_name);
         }
     }
     int arg_counter = 1;
     AstNode* curr_arg = stm->function_call.args;
-    TypeListNode* curr_arg_decl = var.type.function_type.arg_types;
+    TypeListNode* curr_arg_decl = var.type->function_type.arg_types;
     while(1) {
         if( curr_arg == NULL ) {
             break;
         }
-        Type arg_type      = analyze_expr_statement(curr_arg->argument.value);
+        Type* arg_type      = analyze_expr_statement(curr_arg->argument.value);
         if( curr_arg_decl == NULL ) {
-            PANIC("In call to function '%s' expected %d argument/s got additianal argument of type {%s}",var.ident,arg_counter,arg_type.type_name);
+            PANIC("In call to function '%s' expected %d argument/s got additianal argument of type {%s}",var.ident,arg_counter,arg_type->type_name);
         }
-        Type arg_decl_type = curr_arg_decl->type;
-        int type_cmp_err =Type_cmp(&arg_decl_type,&arg_type);
+        Type* arg_decl_type = curr_arg_decl->type;
+        int type_cmp_err =Type_cmp(arg_decl_type,arg_type);
         if( type_cmp_err != 1 && type_cmp_err != 3) {
             StringBuilder expr_sb = sb_new();
             print_expr_to_sb(&expr_sb,curr_arg->argument.value->expression_statement.expression);
 
             StringBuilder decl_arg_type_sb = sb_new();
-             Type_build_type_string(&decl_arg_type_sb,&arg_decl_type);
+             Type_build_type_string(&decl_arg_type_sb,arg_decl_type);
             StringBuilder arg_type_sb = sb_new();
-             Type_build_type_string(&arg_type_sb,&arg_type);
+             Type_build_type_string(&arg_type_sb,arg_type);
             PANIC("In call to function '%s' argument number:%d doesnt match the argument declaration. Expected {%s} and got {%s} '%s'",
                   var.ident,
                   arg_counter,
@@ -455,51 +459,59 @@ Type analyze_function_call(AstNode* stm) {
         curr_arg_decl = curr_arg_decl->next;
         curr_arg = curr_arg->argument.next;
     }
-    return *var.type.function_type.return_type;
+    return var.type->function_type.return_type;
 }
 
-Type analyze_expr_statement_inner(AstNode* stm) {
+Type* analyze_expr_statement_inner(AstNode* stm) {
     switch(stm->type) {
         char* ident;
         case AST_NUMBER:
-            return *stm->number.type;
+            return stm->number.type;
         case AST_IDENTIFIER:
             ident = stm->identifier.token.value;  
             if( !Stack_find(&anlz.declared_vars, ident) ) {
                 PANIC("Use of undeclered var: %s",ident);
             } else {
                 Variable var = Stack_get(&anlz.declared_vars, ident);
-                stm->identifier.type = Type_alloc_type(var.type);
+                stm->identifier.type = var.type;
                 return var.type;
             }
         case AST_FUNC_CALL:
             return analyze_function_call(stm); 
         case AST_STRING:
+            PANIC("strings not suported");
+            /*
             Type ptr_type = Type_new(NULL,POINTER_TYPE);
             ptr_type.pointer_type.sub_type = (Type*)malloc(sizeof(Type));
-            *ptr_type.pointer_type.sub_type = PRIMITIVE_TYPES[INTIGER_TYPE_IDX];
+            *ptr_type.pointer_type.sub_type = anlz.types[INTIGER_TYPE_IDX];
             ptr_type.pointer_type.sub_type->intiger_type.size = BITS_8;
             return ptr_type;
+            */
     }
     if( stm->type == AST_UNARY_OPERATION ) {
-        Type type = analyze_expr_statement_inner(stm->unary_operation.right);
+        Type* type = analyze_expr_statement_inner(stm->unary_operation.right);
         switch( stm->unary_operation.opp_token.kind ) {
             case NOT:
                 stm->unary_operation.is_lvalue = false;
-                if( type.type_kind != BOOL_TYPE ) {
+                if( type->type_kind != BOOL_TYPE ) {
                     StringBuilder expr_sb = sb_new();
                      print_expr_to_sb(&expr_sb,stm);
 
                     StringBuilder type_sb = sb_new();
-                     Type_build_type_string(&type_sb,&type);
+                     Type_build_type_string(&type_sb,type);
                     PANIC("attemted to NOT a type (%s) thats not a bool %s",type_sb.buffer,expr_sb.buffer);
                 } 
-                return PRIMITIVE_TYPES[BOOL_TYPE_IDX];
+                stm->unary_operation.op_type = &anlz.types[BOOL_TYPE_IDX];
+                stm->unary_operation.return_type = &anlz.types[BOOL_TYPE_IDX];
+                return &anlz.types[BOOL_TYPE_IDX];
 
             case MINUS:
                 stm->unary_operation.is_lvalue = false;
-                ASSERT( (type.type_kind == INTIGER_TYPE || type.type_kind == FLOAT_TYPE),
-                       "Tried to MINIUS (negate) a (%s), thats not a number", type.type_name)
+                ASSERT( (type->type_kind == INTIGER_TYPE || type->type_kind == FLOAT_TYPE),
+                       "Tried to MINIUS (negate) a (%s), thats not a number", type->type_name)
+
+                stm->unary_operation.op_type = type;
+                stm->unary_operation.return_type = type;
                 return type;
             case PLUS_PLUS:
                 if( !is_lvalue(stm->unary_operation.right) ){
@@ -507,13 +519,16 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                      print_expr_to_sb(&expr_sb,stm);
 
                     StringBuilder type_sb = sb_new();
-                     Type_build_type_string(&type_sb,&type);
+                     Type_build_type_string(&type_sb,type);
                     PANIC("got {%s} but lvalue required as trying to '++' increment %s",type_sb.buffer,expr_sb.buffer);
                 }
 
                 stm->unary_operation.is_lvalue = true;
-                ASSERT( (type.type_kind == INTIGER_TYPE || type.type_kind == FLOAT_TYPE),
-                       "Tried to PLUS_PLUS (increment) a (%s), thats not a number", type.type_name)
+                ASSERT( (type->type_kind == INTIGER_TYPE || type->type_kind == FLOAT_TYPE),
+                       "Tried to PLUS_PLUS (increment) a (%s), thats not a number", type->type_name)
+
+                stm->unary_operation.op_type = type;
+                stm->unary_operation.return_type = type;
                 return type;
             case MINUS_MINUS:
                 if( !is_lvalue(stm->unary_operation.right) ){
@@ -521,13 +536,16 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                      print_expr_to_sb(&expr_sb,stm);
 
                     StringBuilder type_sb = sb_new();
-                     Type_build_type_string(&type_sb,&type);
+                     Type_build_type_string(&type_sb,type);
                     PANIC("got {%s} but lvalue required as trying to '-- decrement %s",type_sb.buffer,expr_sb.buffer);
                 }
 
                 stm->unary_operation.is_lvalue = true;
-                ASSERT( (type.type_kind == INTIGER_TYPE || type.type_kind == FLOAT_TYPE),
-                       "Tried to MINUS_MINUS (decrement) a (%s), thats not a number", type.type_name)
+                ASSERT( (type->type_kind == INTIGER_TYPE || type->type_kind == FLOAT_TYPE),
+                       "Tried to MINUS_MINUS (decrement) a (%s), thats not a number", type->type_name)
+
+                stm->unary_operation.op_type = type;
+                stm->unary_operation.return_type = type;
                 return type;
             case AMPERSAND:
                 if( !is_lvalue(stm->unary_operation.right) ){
@@ -535,36 +553,37 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                      print_expr_to_sb(&expr_sb,stm);
 
                     StringBuilder type_sb = sb_new();
-                     Type_build_type_string(&type_sb,&type);
+                     Type_build_type_string(&type_sb,type);
                     PANIC("got {%s} but lvalue required as '&' operand %s",type_sb.buffer,expr_sb.buffer);
                 }
 
                 stm->unary_operation.is_lvalue = false;
+
                 Type ptr_type = Type_new(NULL,POINTER_TYPE);
-                ptr_type.pointer_type.sub_type = (Type*)malloc(sizeof(Type));
-                *ptr_type.pointer_type.sub_type = type;
-                return ptr_type;
+                ptr_type.pointer_type.sub_type = type;
+
+                return Analyzer_alloc_type(ptr_type);
             case STAR:
-                if( type.type_kind != POINTER_TYPE ) {
+                if( type->type_kind != POINTER_TYPE ) {
                     StringBuilder expr_sb = sb_new();
                      print_expr_to_sb(&expr_sb,stm);
 
                     StringBuilder type_sb = sb_new();
-                     Type_build_type_string(&type_sb,&type);
+                     Type_build_type_string(&type_sb,type);
                     PANIC("attempted to dereference a {%s} type thats not a pointer %s",type_sb.buffer,expr_sb.buffer);
                 }
+
                 stm->unary_operation.is_lvalue = true;
-                Type derefed_type = *type.pointer_type.sub_type;
+                Type* derefed_type = type->pointer_type.sub_type;
                 return derefed_type;
             default: 
                 PANIC("%s %d: Panicked",__FILE__,__LINE__);
         }
-        return type;
+        //return type;
     } else
     if( stm->type == AST_BINARY_OPERATION ) {
-        Type left_type  ;
-        Type right_type ;
-        // TODO
+        Type* left_type  ;
+        Type* right_type ;
         switch( stm->binary_operation.opp_token.kind ) {
             // same type return type
             case STAR:
@@ -574,10 +593,14 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                 stm->binary_operation.is_lvalue = false;
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
                 right_type = analyze_expr_statement_inner(stm->binary_operation.right);
-                if( Type_cmp(&left_type,&right_type) != 1) {
-                    PANIC("Tried to %s {%s} and {%s} witch are not the same type",format_token(stm->binary_operation.opp_token),Type_format_type_kind(left_type),Type_format_type_kind(right_type));
+                if( Type_cmp(left_type,right_type) != 1) {
+                    PANIC("Tried to %s {%s} and {%s} witch are not the same type",
+                          format_token(stm->binary_operation.opp_token),
+                          Type_format_type_kind(*left_type),
+                          Type_format_type_kind(*right_type));
                 }
-                stm->binary_operation.type = Type_alloc_type(left_type);
+                stm->binary_operation.return_type = left_type;
+                stm->binary_operation.op_type = left_type;
                 return left_type;
 
             // same type return bool
@@ -589,21 +612,21 @@ Type analyze_expr_statement_inner(AstNode* stm) {
             case MORE_EQUAL:
                 stm->binary_operation.is_lvalue = false;
 
-
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
                 right_type = analyze_expr_statement_inner(stm->binary_operation.right);
-                if( Type_cmp(&left_type,&right_type) != 1) {
+                if( Type_cmp(left_type,right_type) != 1) {
                     StringBuilder expr_sb = sb_new();
                      print_expr_to_sb(&expr_sb,stm);
 
                     StringBuilder left_type_sb = sb_new();
-                     Type_build_type_string(&left_type_sb,&left_type);
+                     Type_build_type_string(&left_type_sb,left_type);
                     StringBuilder right_type_sb = sb_new();
-                     Type_build_type_string(&right_type_sb,&right_type);
+                     Type_build_type_string(&right_type_sb,right_type);
                     PANIC("Tried to %s {%s} and {%s} witch are not the same type %s",format_token(stm->binary_operation.opp_token),left_type_sb.buffer,right_type_sb.buffer,expr_sb.buffer);
                 }
-                stm->binary_operation.type = &PRIMITIVE_TYPES[BOOL_TYPE_IDX];
-                return PRIMITIVE_TYPES[BOOL_TYPE_IDX];
+                stm->binary_operation.op_type = left_type;
+                stm->binary_operation.return_type = &anlz.types[BOOL_TYPE_IDX];
+                return &anlz.types[BOOL_TYPE_IDX];
 
             // same type and return VOID type
             // (a = a + b) ; type_of( (a = b) ) == VOID
@@ -617,18 +640,18 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                     PANIC("Tried to assing but left operand isnt an lvalue");
                 }
 
-                if( Type_cmp(&left_type,&right_type) != 1) {
+                if( Type_cmp(left_type,right_type) != 1) {
                     StringBuilder expr_sb = sb_new();
                      print_expr_to_sb(&expr_sb,stm);
 
                     StringBuilder left_type_sb = sb_new();
-                     Type_build_type_string(&left_type_sb,&left_type);
+                     Type_build_type_string(&left_type_sb,left_type);
                     StringBuilder right_type_sb = sb_new();
-                     Type_build_type_string(&right_type_sb,&right_type);
+                     Type_build_type_string(&right_type_sb,right_type);
                     PANIC("Tried to ASSIGN {%s} to {%s} %s", right_type_sb.buffer, left_type_sb.buffer, expr_sb.buffer);
                 }
-                stm->binary_operation.type = Type_alloc_type(PRIMITIVE_TYPES[VOID_TYPE_IDX]);
-                return PRIMITIVE_TYPES[VOID_TYPE_IDX];
+                stm->binary_operation.return_type = &anlz.types[VOID_TYPE_IDX];
+                return &anlz.types[VOID_TYPE_IDX];
 
             // check struct field is in the struct then return the field type
             // b.c ; type_of( b.c ) == type_of( field c )
@@ -639,12 +662,12 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                 stm->binary_operation.is_lvalue = true;
 
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
-                if( left_type.type_kind != STRUCT_TYPE) {
+                if( left_type->type_kind != STRUCT_TYPE) {
                     StringBuilder expr_sb = sb_new();
                      print_expr_to_sb(&expr_sb,stm);
 
                     StringBuilder left_type_sb = sb_new();
-                     Type_build_type_string(&left_type_sb,&left_type);
+                     Type_build_type_string(&left_type_sb,left_type);
                     PANIC("Tried to use DOT operator on {%s} %s", left_type_sb.buffer, expr_sb.buffer);
                 }
 
@@ -652,8 +675,8 @@ Type analyze_expr_statement_inner(AstNode* stm) {
                     ASSERT( (field_name_identifier->type == AST_IDENTIFIER), "Only an identifier can be a field name", "");
                 char* field_name = field_name_identifier->identifier.token.value;
 
-                Type field_type = Type_get_field_type(left_type,field_name);
-                stm->binary_operation.type = Type_alloc_type(field_type);
+                Type* field_type = Type_get_field_type(left_type,field_name);
+                stm->binary_operation.return_type = field_type;
                 return field_type;
 
             case SUBSCRIPT_OPEN: // right side has to be an intiger

@@ -13,7 +13,7 @@
 }
 #define PANIC(fmt, ...) { \
     printf("%s %d: " "\033[1;31m" fmt "\033[0m" "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
-    *(int*)0=0;\
+    __builtin_trap(); \
     exit(-1); \
 }
 
@@ -70,62 +70,7 @@ bool is_value_ast(AstNode* stm) {
             
     }
 }
-/*
-void update_vars(VariableInfoList* variables_list, AstNode* stm, int current_line) {
-    const char* name;
-    Type* type;
 
-    switch( stm->type ) {
-        case AST_IDENTIFIER:
-            name = stm->identifier.token.value;
-            type = stm->identifier.type;
-
-            VariableInfo* variable = find_var(*variables_list,name);
-            variable->last_line_used = current_line;
-            break;
-        case AST_DECLARATION:
-            name = stm->declaration.name;
-            type = stm->declaration.type;
-
-            int arg_size = Type_size_of(type);
-            VariableInfo info = {.identifier = name, 
-                                 .first_line_used = current_line, 
-                                 .last_line_used = current_line, 
-                                 .location = NOT_ASSIGNED };
-            da_append_ref(variables_list,info);
-            break;
-        default:
-            PANIC("PANICKED");
-    }
-}
-void update_variable_info_with_expression(VariableInfoList* variables_list, AstNode* stm,int current_line) {
-    switch(stm->type) {
-        case AST_UNARY_OPERATION:
-            update_variable_info_with_expression(variables_list,stm->unary_operation.right,current_line);
-            return;
-        case AST_BINARY_OPERATION:
-            update_variable_info_with_expression(variables_list,stm->binary_operation.right,current_line);
-            update_variable_info_with_expression(variables_list,stm->binary_operation.left,current_line);
-            return;
-        case AST_IDENTIFIER:
-            update_vars(variables_list,stm,current_line);
-            return;
-        case AST_FUNC_CALL:
-            AstNode* next = stm->function_call.args;
-            while(next != NULL) {
-                AstNode* arg = next->argument.value->expression_statement.expression;
-                update_variable_info_with_expression(variables_list,arg,current_line);
-                next = next->argument.next;
-            }
-            return;
-        case AST_NUMBER:
-        case AST_STRING:
-            return;
-        default:
-            PANIC("NOT SUPPORTED: %s",format_ast_type(stm));
-  }
-}
-*/
 int analyze_variable_stack_usage(VariableInfoList* variables_list, AstNode* next, int curr_frame_ptr) {
     while( next != NULL ) {
         AstNode* curr = next;
@@ -177,54 +122,6 @@ int analyze_variable_stack_usage(VariableInfoList* variables_list, AstNode* next
     return curr_frame_ptr;
 }
 
-/*
-int analyze_variable_lifetimes(VariableInfoList* variables_list, AstNode* stm, int current_line) {
-    AstNode* next = stm;
-    while( next != NULL ) {
-        AstNode* curr = next;
-        switch(curr->type) {
-            case AST_BLOCK_STATEMENT:
-                current_line = analyze_variable_lifetimes(variables_list,curr->block_statement.statements,current_line);
-                next = curr->block_statement.next;
-                break;
-            case AST_DECLARATION:
-                update_vars(variables_list,curr,current_line);
-                update_variable_info_with_expression(variables_list,curr->declaration.value->expression_statement.expression,current_line);
-                current_line++;
-                next = curr->declaration.next;
-                break;
-            case AST_EXPRESSION_STATEMENT:
-                update_variable_info_with_expression(variables_list,curr->expression_statement.expression,current_line);
-                current_line++;
-                next = next->expression_statement.next;
-                break;
-            case AST_RETURN_STATEMENT:
-                update_variable_info_with_expression(variables_list,curr->return_statement.expression->expression_statement.expression,current_line);
-                current_line++;
-                next = next->return_statement.next;
-                break;
-            case AST_IF_STATEMENT:
-                PANIC("TODO");
-                next = next->if_statement.next;
-                break;
-            case AST_FOR_STATEMENT:
-                PANIC("TODO");
-                next = next->for_statement.next;
-                break;
-            case AST_WHILE_STATEMENT:
-                PANIC("TODO");
-                next = next->while_statement.next;
-                break;
-            //AST_BINARY_OPERATION,   
-            //AST_UNARY_OPERATION,    
-            //AST_FUNC_CALL,          
-            default:
-                PANIC("NOT SUPPORTED: %s",format_ast_type(curr));
-        }
-    }
-    return current_line;
-}
-*/
 
 void generate_asm_for_hanging_expression(StringBuilder* sb, AstNode* stm, FunctionContext* context ) {
     //PANIC("TODO",__FILE__,__LINE__);
@@ -240,6 +137,7 @@ void generate_asm_for_hanging_expression(StringBuilder* sb, AstNode* stm, Functi
             switch( stm->binary_operation.opp_token.kind ) {
                 case ASSIGN:
                     Register new_register = take_next_available_register(&context->available_registers);
+                    //Register new_register = take_next_available_register_for_type(&context->available_registers,stm->binary_operation.right);
                     if( new_register == 0 ) {
                         PANIC("RUN OUT OF REGISTERS");
                     }
@@ -440,11 +338,8 @@ void generate_asm_for_if_statement(StringBuilder* sb, AstNode* stm, FunctionCont
         sb_append(sb,"L%i:\n",end_of_else_block_label_number);
     }
 }
-
 void generate_asm_for_expression(StringBuilder* sb, AstNode* stm, FunctionContext* context, Register target_register) {
-    if( stm == NULL ) {
-        PANIC("NULL AST_NODE");
-    }
+    ASSERT( (stm != NULL), "NULL AST_NODE" );
 
     switch(stm->type) {
         case AST_BINARY_OPERATION: {
@@ -453,13 +348,13 @@ void generate_asm_for_expression(StringBuilder* sb, AstNode* stm, FunctionContex
                 case PLUS: 
                 case MINUS:
                 case STAR:
-                    handle_simple_ops(sb,stm,context,target_register);
+                    handle_int_simple_ops(sb,stm,context,target_register);
                     break;
                 case ASSIGN:
                     handle_assing_op(sb,stm,context,target_register);
                     break;
                 case DIVITION:
-                    handle_divition_op(sb,stm,context,target_register);
+                    handle_int_divition_op(sb,stm,context,target_register);
                     break;
                 case EQUAL:     
                 case NOT_EQUAL: 
@@ -500,29 +395,9 @@ void generate_asm_for_expression(StringBuilder* sb, AstNode* stm, FunctionContex
     }
 }
 
-/*
-void free_registers_from_later_unused_variables(FunctionContext* context) {
-    for(int idx = 0; idx < context->variables_list.count; idx++) {
-        VariableInfo* variable = &context->variables_list.items[idx];
-
-        if( variable->location.type != NOT_ASSIGNED && context->current_line > variable->last_line_used ) {
-            if( variable->location.type == REGISTER ) {
-                printf("FREEING REGISTER %s USED FOR VARIABLE %s on line %d\n",get_register_str(variable->location.register_location.register_),variable->identifier,context->current_line);
-                add_register(&context->available_registers,variable->location.register_location.register_);
-            } else {
-                printf("FREEING VARIABLE %s with stack offset %d on line %d\n",variable->identifier,variable->location.stack_location.base_offset,context->current_line);
-            }
-            variable->location.type = NOT_ASSIGNED;
-        }
-    }
-}
-*/
-
 void generate_asm_for_statements(StringBuilder* sb, AstNode* next,FunctionContext* context) {
     while( next != NULL ) {
         AstNode* curr = next;
-
-        //free_registers_from_later_unused_variables(context);
 
         switch(curr->type) {
             case AST_BLOCK_STATEMENT:
@@ -530,8 +405,10 @@ void generate_asm_for_statements(StringBuilder* sb, AstNode* next,FunctionContex
                 next = curr->block_statement.next;
                 break;
             case AST_DECLARATION:
-                //printf("DECLARING %s on line %d\n",curr->declaration.name,context->current_line);
-                // TODO: REMOVE UNNASSASARY MOVES TO REGISTERS FOR DIRECT VALUES (VALUES NOT IN MEMORY so REGISTERS, NUMBERS)
+                if( curr->declaration.value->expression_statement.expression == NULL ) {
+                    next = curr->declaration.next;
+                    break;
+                }
 
                 Register target_register = take_next_available_register(&context->available_registers);
                 if( target_register == 0 ) {
@@ -739,7 +616,9 @@ void mangle_names_inner(NameManglingContext* context, AstNode* stm) {
                 next = curr->block_statement.next;
                 break;
             case AST_DECLARATION:
-                mangle_expression(context,curr->declaration.value);
+                if( curr->declaration.value->expression_statement.expression != NULL ) {
+                    mangle_expression(context,curr->declaration.value);
+                }
                 NameManglingContext_add_variable_to_current_scope(context,curr->declaration.name);
                 mangle_variable(context,&curr->declaration.name);
                 next = curr->declaration.next;

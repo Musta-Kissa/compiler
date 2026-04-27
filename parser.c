@@ -13,7 +13,8 @@
 #include "lexer.h"
 
 #define PANIC(fmt, ...) { \
-    printf(fmt "\n", ##__VA_ARGS__); \
+    printf("\033[1;31m" fmt "\033[0m" "\n", ##__VA_ARGS__); \
+    __builtin_trap(); \
     exit(-1); \
 }
     //*(int*)0=0; 

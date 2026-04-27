@@ -61,19 +61,19 @@ typedef struct Type {
 } Type;
 
 struct FieldListNode {
-    Type type;
+    Type* type;
     char* name;
     FieldListNode* next; // Can be NULL
 };
 
 struct TypeListNode {
-    Type type;
+    Type* type;
     TypeListNode* next; // Can be NULL
 };
 
 Type* Type_alloc_type(Type type);
 Type Type_new(char* type_name, TypeKind type_kind);
-Type Type_get_field_type(Type type,char* field_name);
+Type* Type_get_field_type(Type* type,char* field_name);
 const char* Type_format_type_kind(Type type);
 int Type_cmp(Type* type1, Type* type2);
 int Type_is_lvalue(Type* type);
