@@ -6,7 +6,8 @@
 #include "my_string.h"
 #include "parser.h"
 #include "analyzer.h"
-#include "backend.h"
+#include "tac.h"
+//#include "backend.h"
 
 #define PANIC(fmt, ...) { \
     printf(fmt "\n", ##__VA_ARGS__); \
@@ -50,12 +51,16 @@ int main(int argc, char* argv[]) {
     analyze_program_ast(program);
     //printf("\e[0;32manalyzed ✓\e[0m\n"); 
     
+    generate_tac(program);
+
+    /*
     const char* output = generate_asm(program);
     if( compile(output) == 0 ) {
         printf("COMPILATION DONE\n");
     } else {
         PANIC("COMPILATION FAILED");
     }
+    */
 }
 
 int compile(const char *asm_code) {

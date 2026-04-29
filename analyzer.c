@@ -54,6 +54,7 @@ Type Analyzer_get_type(char* type_name,int* err) {
     *err = -1;
     //PANIC("%s %d: Type not found in Analyzer_get_type(): %s",__FILE__,__LINE__,type_name);
 }
+
 Variable Variable_new(Type* type, char* ident) {
     Variable var;
         var.ident = ident;
