@@ -1,5 +1,5 @@
 #!/bin/bash
-time gcc lexer.c parser.c my_string.c main.c types.c analyzer.c backend.c var_dict.c registers.c \
+time gcc lexer.c parser.c my_string.c main.c types.c analyzer.c backend.c registers.c \
     -Wunused-but-set-variable \
     -Wreturn-type \
     -Wno-discarded-qualifiers \
