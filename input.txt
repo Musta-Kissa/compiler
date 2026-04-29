@@ -1,0 +1,67 @@
+extern {
+    fn allocate_page() -> *int {}
+    fn print_int(int i) {}
+}
+
+fn foo(int a_1, int b_1, int c_1) -> int {
+    a:= a_1;
+    b:= 4;
+    {
+        b:= 2;
+    }
+    {
+        b:= 3;
+        c:= b * 2;
+    }
+    return a + c_1 * c_1 + b_1;
+}
+fn taking_addresses() {
+    a : int = 3;
+    b :*int = &a;
+    print_int(*b);
+    *b = 420;
+    print_int(*b);
+}
+fn modify_by_ptr(*int var, int value) {
+    *var = value;
+}
+
+fn main() {
+    ab: int = 32;
+    bc: int = 64;
+    if ab > bc {
+        print_int(ab);
+    } else {
+        print_int(bc);
+    }
+
+    i :bool = (0 == 0);
+
+    a :int = foo(9,2,3);
+
+    modify_by_ptr(&a, 00);
+
+    var_bool :bool;
+    var_bool = (0 == 0);
+
+    while( var_bool ) {
+        print_int(a);
+        a = a + 1;
+        var_bool = a < 20;
+    }
+    print_int(58008);
+
+    if i {
+        print_int(a);
+    } else {
+        print_int(1234);
+    }
+
+    taking_addresses();
+
+    print_int(*allocate_page());
+
+    b : int = 69;
+    a = 69/3;
+    print_int(a);
+}
