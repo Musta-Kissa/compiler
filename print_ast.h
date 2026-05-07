@@ -6,13 +6,8 @@
 #include "parser.h"
 #include "my_string.h"
 #include "types.h"
+#include "panic_macros.h"
 
-#define ASSERT(expr, fmt, ...) { \
-    if (!expr) { \
-    printf(fmt "\n", ##__VA_ARGS__); \
-        exit(-1); \
-    } \
-}
 
 /*
     AstNode* parse_expr(Lexer* lexer, int curr_bp); Done
@@ -167,6 +162,10 @@ void print_if(AstNode* node) {
     print_statements(node->if_statement.condition);
     printf(" body= ");
     print_statements(node->if_statement.body);
+    if( node->if_statement.else_block != NULL ) {
+        printf(" else= ");
+        print_statements(node->if_statement.else_block); 
+    }
     printf("\n");
 }
 void print_for(AstNode* node) {

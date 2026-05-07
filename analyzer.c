@@ -2,6 +2,7 @@
 #include "analyzer.h"
 #include "parser.h"
 #include "types.h"
+#include "panic_macros.h"
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -10,19 +11,6 @@ Type* CURR_EXPECTED_RETURN_TYPES[NESTED_FUNCTIONS];
 int CURR_EXPECTED_RETURN_TYPE_IDX = 0;
 
 bool IS_IN_EXTERN_BLOCK = false;
-
-#define ASSERT(expr, fmt, ...) { \
-    if (!expr) { \
-        printf(fmt "\n", ##__VA_ARGS__); \
-        exit(-1); \
-    } \
-}
-
-#define PANIC(fmt, ...) { \
-    printf("\033[1;31m" fmt "\033[0m" "\n", ##__VA_ARGS__); \
-    __builtin_trap(); \
-    exit(-1); \
-}
 
 Analyzer anlz;
 int get_type_err; // 0 - OK , -1 - NOT FOUND
@@ -95,7 +83,7 @@ void ScopeNumbersStack_push(ScopeNumbersStack* stack) {
     stack->numbers[stack->numbers_pointer++] = stack->curr_scope_number++;
 }
 int ScopeNumbersStack_get_number(ScopeNumbersStack* stack) {
-    stack->numbers[stack->numbers_pointer-1];
+    return stack->numbers[stack->numbers_pointer-1];
 }
 void ScopeNumbersStack_pop(ScopeNumbersStack* stack) {
     stack->numbers_pointer--;
@@ -487,6 +475,8 @@ void analyze_return(AstNode* stm) {
          Type_build_type_string(&expr_type_sb,type);
         PANIC("Wrong type in return statement {%s}, expected {%s} ",expr_type_sb.buffer, decl_type_sb.buffer);
     }
+
+    stm->return_statement.return_type = type;
 }
 void analyze_extern_statement(AstNode* stm) {
     if( anlz.declared_vars.frames_idx > 1 ) {
@@ -495,17 +485,22 @@ void analyze_extern_statement(AstNode* stm) {
     if( IS_IN_EXTERN_BLOCK ) {
         PANIC("Cant have nested 'extern' blocks");
     }
+
+    IS_IN_EXTERN_BLOCK = true;
     switch( stm->extern_statement.body->type ) {
+            //analyze_statements(stm->extern_statement.body);
         case AST_BLOCK_STATEMENT:
-            IS_IN_EXTERN_BLOCK = true;
             analyze_statements(stm->extern_statement.body->block_statement.statements);
-            IS_IN_EXTERN_BLOCK = false;
+            break;
+        case AST_FUNCTION_DECLARATION:
+            analyze_function_decl(stm->extern_statement.body);
             break;
         default:
             PANIC("Extern statement not before block statement");
             //analyze_statements(stm->extern_statement.body);
             break;
     }
+    IS_IN_EXTERN_BLOCK = false;
 }
 AnalyzeStatementsReturn analyze_statements(AstNode* stm) {
     AnalyzeStatementsReturn out = {.encountered_return = false };
@@ -643,6 +638,7 @@ Type* analyze_function_call(AstNode* stm) {
         curr_arg_decl = curr_arg_decl->next;
         curr_arg = curr_arg->argument.next;
     }
+    stm->function_call.return_type = var.type->function_type.return_type;
     return var.type->function_type.return_type;
 }
 
@@ -758,6 +754,7 @@ Type* analyze_expr_statement_inner(AstNode* stm) {
                 }
 
                 stm->unary_operation.is_lvalue = true;
+                stm->unary_operation.op_type = type->pointer_type.sub_type;
                 Type* derefed_type = type->pointer_type.sub_type;
                 return derefed_type;
             default: 
@@ -834,6 +831,7 @@ Type* analyze_expr_statement_inner(AstNode* stm) {
                      Type_build_type_string(&right_type_sb,right_type);
                     PANIC("Tried to ASSIGN {%s} to {%s} %s", right_type_sb.buffer, left_type_sb.buffer, expr_sb.buffer);
                 }
+                stm->binary_operation.op_type =     right_type;
                 stm->binary_operation.return_type = &anlz.types[VOID_TYPE_IDX];
                 return &anlz.types[VOID_TYPE_IDX];
 

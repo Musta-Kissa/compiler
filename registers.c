@@ -1,14 +1,10 @@
 #include <stdint.h>
 #include <stdio.h>
+#include "panic_macros.h"
 #include "types.h"
 #include "registers.h"
 
 #include "stdlib.h"
-#define PANIC(fmt, ...) { \
-    printf("%s %d: " "\033[1;31m" fmt "\033[0m" "\n", __FILE__, __LINE__, ##__VA_ARGS__); \
-    *(int*)0=0;\
-    exit(-1); \
-}
 
 Registers Registers_new() {
     return ~(u32)0;

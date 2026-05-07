@@ -13,9 +13,21 @@ typedef enum {
     TAC_RET,
 
     TAC_FCALL,
+    TAC_EXTERN,
+    TAC_LABEL,
 
-    TAC_COND_BR,
-    TAC_BR,
+    TAC_JMP_IF,
+    TAC_JMP_IF_NOT,
+    TAC_JMP,
+
+    // ptr ops
+    TAC_LOAD,        
+    TAC_STORE,      
+    TAC_ADDR,      
+
+    TAC_ALLOC,
+
+    TAC_MOV,
 
     TAC_CMP_EQ,
     TAC_CMP_NE,
@@ -27,8 +39,10 @@ typedef enum {
 
 typedef enum {
     TAC_VOID = 0,
+    TAC_PTR,
     TAC_I64,
     TAC_F64,
+    TAC_B64,
 } TacType;
 
 typedef enum {
@@ -50,7 +64,7 @@ typedef struct {
         char    *ident;        // for local vars: "a", "b"
         int     int_val;
         float   float_val;
-        //char    *label_name;  // for labels: "L1", "L2"
+        char    *label_name;  // for labels: "L1", "L2"
     };
 } TacVar;
 typedef struct {
@@ -63,8 +77,9 @@ typedef struct {
     union {
         struct { TacVar arg1, arg2, result; } binary;
         struct { TacVar src; } unary;
+        struct { TacVar src; TacVar dest; } move;
         struct { TacVar result; char* ident; TacVarDA args; } fcall;
-        struct { TacVar src; char* label; } branch;
+        struct { TacVar src; char* label; } jump;
     };
 } TacInstr;
 
@@ -72,7 +87,37 @@ typedef struct {
     make_da(TacInstr)    
 } TacInstrDA;
 
+typedef struct {
+    make_da(char*)
+} CStringDA;
 
-TacInstrDA generate_tac(AstNode* node);
+typedef struct {
+    TacType type;
+    char* ident;
+} ProcArg;
+typedef struct {
+    make_da(ProcArg)
+} ProcArgs;
+
+typedef struct {
+    TacInstrDA instructions;
+    ProcArgs args; 
+    char* ident;
+} TacProc;
+
+typedef struct {
+    make_da(TacProc)
+} TacProcDA;
+
+typedef struct {
+    CStringDA extern_declarations;
+    TacProcDA procedures;
+} TacProgram;
+
+TacProgram generate_tac(AstNode* node);
+int tac_expression(TacInstrDA* instructions, AstNode* stm);
+void tac_statements(TacInstrDA* instructions, AstNode* next);
+void print_tac(TacInstrDA instructions);
+void print_tac_proc(TacProc proc);
 
 #endif

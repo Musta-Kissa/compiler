@@ -1,12 +1,8 @@
 #include<stdio.h>
 #include<stdlib.h>
+#include "panic_macros.h"
 #include "my_string.h"
 #include "parser.h"
-
-#define PANIC(fmt, ...) { \
-    printf(fmt "\n", ##__VA_ARGS__); \
-    exit(-1); \
-}
 
 String String_readfile(FILE* file) {
     fseek(file, 0, SEEK_END);

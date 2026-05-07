@@ -1,16 +1,6 @@
 #include "lexer.h"
+#include "panic_macros.h"
 #include <string.h>
-
-#define PANIC(fmt, ...) { \
-    printf(fmt "\n", ##__VA_ARGS__); \
-    exit(-1); \
-}
-#define ASSERT(expr, fmt, ...) { \
-    if (!expr) { \
-        printf(fmt "\n", ##__VA_ARGS__); \
-        exit(-1); \
-    } \
-}
 
 const char* format_token(Token k) {
     return format_token_kind(k.kind);

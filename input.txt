@@ -1,6 +1,15 @@
+extern fn allocate_page() -> *int {}
 extern {
-    fn allocate_page() -> *int {}
     fn print_int(int i) {}
+}
+
+fn tac_test(float a, float b, int c, int d) -> int {
+    i :int = 0;
+    while a > b {
+        a = a - b;
+        i = i + 1;
+    }
+    return i;
 }
 
 fn foo(int a_1, int b_1, int c_1) -> int {

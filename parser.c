@@ -8,22 +8,10 @@
 //
 //==================================
 
+#include "panic_macros.h"
 #include "parser.h"
 #include "my_string.h"
 #include "lexer.h"
-
-#define PANIC(fmt, ...) { \
-    printf("\033[1;31m" fmt "\033[0m" "\n", ##__VA_ARGS__); \
-    __builtin_trap(); \
-    exit(-1); \
-}
-    //*(int*)0=0; 
-#define ASSERT(expr, fmt, ...) { \
-    if (!expr) { \
-        printf(fmt "\n", ##__VA_ARGS__); \
-        exit(-1); \
-    } \
-}
 
 AstNode* AST_make_binary(AstNode* left, Token opp, AstNode* right) {
     AstNode* node = (AstNode*)malloc(sizeof(AstNode));
@@ -195,11 +183,11 @@ int parse_leaf(Lexer* lexer,AstNode** left) {
 
                 leaf->number.value = value.buffer; // leaf takes ownership of buffer
                 leaf->number.type = (Type*)malloc(sizeof(Type));
-                *leaf->number.type = (Type){.type_kind=FLOAT_TYPE, .type_name = "float" };
+                *leaf->number.type = (Type){.type_kind=FLOAT_TYPE, .float_type.size=BITS_64, .type_name = "float" };
             } else { // Intiger
                 leaf->number.value = t.value;
                 leaf->number.type = (Type*)malloc(sizeof(Type));
-                *leaf->number.type = (Type){.type_kind=INTIGER_TYPE, .type_name = "int" };
+                *leaf->number.type = (Type){.type_kind=INTIGER_TYPE, .intiger_type.size=BITS_64, .type_name = "int" };
             }
             *left = leaf;
             return 1;
@@ -467,9 +455,18 @@ AstNode* parse_if(Lexer* lexer) {
 
     if( Lexer_peek(lexer).kind == ELSE ) {
         Lexer_next(lexer);
-        ASSERT( (Lexer_peek(lexer).kind == OPEN_CURRLY_PARENT) , "%s %d: expected '{', got %s, idx: %d",__FILE__,__LINE__,format_token(Lexer_peek(lexer)),lexer->idx);
-        node->if_statement.else_block = parse_block_statement(lexer);
-        ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after if_statement body, got %s, idx: %d",__FILE__,__LINE__,format_token(Lexer_curr(lexer)),lexer->idx);
+        switch( Lexer_peek(lexer).kind ) {
+            case OPEN_CURRLY_PARENT:
+                node->if_statement.else_block = parse_block_statement(lexer);
+                ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after else_statement body, got %s, idx: %d",__FILE__,__LINE__,format_token(Lexer_curr(lexer)),lexer->idx);
+                break;
+            case IF:
+                node->if_statement.else_block = parse_if(lexer);
+                ASSERT( (Lexer_curr(lexer).kind == CLOSE_CURRLY_PARENT) , "%s %d: expected '}' after else_if_statement body, got %s, idx: %d",__FILE__,__LINE__,format_token(Lexer_curr(lexer)),lexer->idx);
+                break;
+            default:
+            PANIC("%s %d: expected '{' or 'if', got %s, idx: %d",__FILE__,__LINE__,format_token(Lexer_peek(lexer)),lexer->idx);
+        }
     }
 
     return node;

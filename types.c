@@ -1,22 +1,10 @@
+#include "panic_macros.h"
 #include "types.h"
 #include "my_string.h"
 #include <stddef.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#define ASSERT(expr, fmt, ...) { \
-    if (!expr) { \
-        printf(fmt "\n", ##__VA_ARGS__); \
-        exit(-1); \
-    } \
-}
-
-#define PANIC(fmt, ...) { \
-    printf("\033[1;31m" fmt "\033[0m" "\n", ##__VA_ARGS__); \
-    __builtin_trap(); \
-    exit(-1); \
-}
 
 Type Type_new(char* type_name, TypeKind type_kind) {
     return (Type){ .type_name=type_name,.type_kind=type_kind };

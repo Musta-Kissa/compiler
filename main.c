@@ -7,13 +7,8 @@
 #include "parser.h"
 #include "analyzer.h"
 #include "tac.h"
+#include "print_ast.h"
 //#include "backend.h"
-
-#define PANIC(fmt, ...) { \
-    printf(fmt "\n", ##__VA_ARGS__); \
-    exit(-1); \
-}
-
 
 int compile(const char *asm_code);
 
@@ -24,7 +19,7 @@ int main(int argc, char* argv[]) {
     //printf("source: \n%s",source.data);
     //printf("============= end source ===============\n\n");
 
-    //printf("sizeof(Tyep) = %d\n",sizeof(Type));
+    //printf("sizeof(Type) = %d\n",sizeof(Type));
     //printf("sizeof(Ast) = %d\n",sizeof(AstNode));
 
 
@@ -51,7 +46,17 @@ int main(int argc, char* argv[]) {
     analyze_program_ast(program);
     //printf("\e[0;32manalyzed ✓\e[0m\n"); 
     
-    generate_tac(program);
+    TacProgram tac_program = generate_tac(program);
+
+    for(int i = 0; i < tac_program.extern_declarations.count; i++) {
+        printf("extern %s\n",tac_program.extern_declarations.items[i]);
+    }
+
+    printf("proc count:%d",tac_program.procedures.count);
+    for(int i = 0; i < tac_program.procedures.count; i++) {
+        printf("\n\n");
+        print_tac_proc(tac_program.procedures.items[i]);
+    }
 
     /*
     const char* output = generate_asm(program);

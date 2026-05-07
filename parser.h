@@ -56,6 +56,7 @@ typedef struct AstNode {
         struct FunctionCall {
             Token identifier;
             struct AstNode* args; // argument*
+            Type* return_type;
         } function_call;   
         struct Argument {
             struct AstNode* value; // expression_statement*
@@ -111,6 +112,7 @@ typedef struct AstNode {
         struct ReturnStatement {
             struct AstNode* expression;
             struct AstNode* next; // Can be NULL
+            Type* return_type;
         } return_statement;
         struct BlockStatment {
             struct AstNode* statements; // Can be NULL
