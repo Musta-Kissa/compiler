@@ -2,9 +2,13 @@
 **This compiler is still WIP!!!**
 
 Its a strongly staticly typed language that works simmilar to C, the syntax is inspired by Jai/Odin.
-The backend compiles the language to C and then compiles the C to an executable.
+I'm currently working on backend for the compiler.
+There is a already a backend that directly generates x64 asm only for intiger operations
+on the x86 brach.
+
 
 ## Example 
+Example with the currently implemented features is located in the input.txt
 ``` c
 extern {
     fn malloc(int i) -> *void {}
