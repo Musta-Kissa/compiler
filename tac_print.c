@@ -16,6 +16,8 @@ int tac_instr_kind(TacInstr instr) {
             case TAC_CMP_GT:
             case TAC_CMP_LE:
             case TAC_CMP_GE:
+            case TAC_LOGIC_AND:     
+            case TAC_LOGIC_OR:     
                 return BINARY;
                 break;
             case TAC_RET: 
@@ -37,6 +39,7 @@ int tac_instr_kind(TacInstr instr) {
             case TAC_ADDR:
                 return MOVE;
                 break;
+            default: PANIC();
         }
     return -1;
 }
@@ -47,6 +50,7 @@ void print_tac_var(TacVar var){
         case VAR_LABEL:         printf("%s",var.label_name);break;
         case VAR_CONST_INT:     printf("%d",var.int_val);   break;
         case VAR_CONST_FLOAT:   printf("%f",var.float_val); break;
+        default: PANIC();
     }
 }
 
@@ -56,7 +60,9 @@ void print_tac_type(TacType type) {
         case TAC_PTR: printf("ptr"); break;
         case TAC_I64: printf("i64"); break;
         case TAC_F64: printf("f64"); break;
-        case TAC_B64: printf("b64"); break;
+        //case TAC_B64: PANIC("DEPRECATED"); break;
+        case TAC_U64: printf("u64"); break;
+        default: PANIC();
     }
 }
 
@@ -97,13 +103,13 @@ void print_tac(TacInstrDA instructions) {
                     case TAC_CMP_GT: printf("cmp_gt"); break;
                     case TAC_CMP_LE: printf("cmp_le"); break;
                     case TAC_CMP_GE: printf("cmp_ge"); break;
+                    case TAC_LOGIC_AND: printf("and"); break;
+                    case TAC_LOGIC_OR:  printf("or"); break;
+                    default: PANIC();
                 }
-                switch(instr.type) {
-                    case TAC_VOID: break;
-                    case TAC_PTR: printf("_ptr"); break;
-                    case TAC_I64: printf("_i64"); break;
-                    case TAC_F64: printf("_f64"); break;
-                    case TAC_B64: printf("_b64"); break;
+                if(instr.type != TAC_VOID ) {
+                    printf("_");
+                    print_tac_type(instr.type);
                 }
                 printf(" ");
                 print_tac_var(instr.binary.arg1);
@@ -123,12 +129,9 @@ void print_tac(TacInstrDA instructions) {
                         continue;
                     }
                 }
-                switch(instr.type) {
-                    case TAC_VOID: break;
-                    case TAC_PTR: printf("_ptr"); break;
-                    case TAC_I64: printf("_i64"); break;
-                    case TAC_F64: printf("_f64"); break;
-                    case TAC_B64: printf("_b64"); break;
+                if(instr.type != TAC_VOID ) {
+                    printf("_");
+                    print_tac_type(instr.type);
                 }
                 printf(" ");
                 print_tac_var(instr.unary.src);
@@ -190,12 +193,9 @@ void print_tac(TacInstrDA instructions) {
                         printf("\n");
                         continue;
                 }
-                switch(instr.type) {
-                    case TAC_VOID: break;
-                    case TAC_PTR: printf("_ptr"); break;
-                    case TAC_I64: printf("_i64"); break;
-                    case TAC_F64: printf("_f64"); break;
-                    case TAC_B64: printf("_b64"); break;
+                if(instr.type != TAC_VOID ) {
+                    printf("_");
+                    print_tac_type(instr.type);
                 }
                 printf(" ");
                 print_tac_var(instr.move.dest);

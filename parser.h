@@ -25,6 +25,7 @@ typedef enum {
     AST_EXTERN_STATEMENT,
 
     //Values
+    AST_BOOL,            
     AST_NUMBER,            
     AST_STRING,             
 } AstNode_Type;
@@ -71,6 +72,10 @@ typedef struct AstNode {
             char* value;
             Type* type;
         } number;     
+        struct Bool {
+            int value;
+            Type* type;
+        } ast_bool;     
         struct AstString {
             Token token;   
         } string;     

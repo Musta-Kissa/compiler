@@ -4,8 +4,6 @@
 #include "panic_macros.h"
 #include <stdlib.h>
 
-
-
 #define VOID_VAR() (TacVar){.kind=VAR_VOID}
 #define LOCAL_VAR(ident) (TacVar){.kind=VAR_LOCAL, .ident = ident}
 #define TEMP_VAR(id) (TacVar){.kind=VAR_TEMP, .temp_id=id}
@@ -43,7 +41,8 @@ TacType tac_type_from_type(Type* type) {
                 case BITS_16:
                 case BITS_32:
                     PANIC("NOT SUPPORTED");
-                case BITS_64: return TAC_B64;
+                //case BITS_64: return TAC_B64;
+                case BITS_64: return TAC_U64;
             } PANIC("UNRACHABLE");
         case POINTER_TYPE:   
             return TAC_PTR;
@@ -131,6 +130,9 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm) {
                 case LESS_EQUAL:    op = TAC_CMP_LE; break;
                 case MORE_EQUAL:    op = TAC_CMP_GE; break;
 
+                case LOGIC_AND:     op = TAC_LOGIC_AND; break;
+                case LOGIC_OR:      op = TAC_LOGIC_OR;  break;
+
                 case ASSIGN:
                     tac_assign(instructions,stm);
                     return -1;
@@ -176,6 +178,15 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm) {
                 default:
                     PANIC("NOT SUPPORTED: %s",format_token(stm->unary_operation.opp_token));
             }
+        } PANIC("Unreachable");
+        case AST_BOOL: {
+            int temp_idx = TEMP_IDX++;
+            da_append_ref(instructions, ((TacInstr){ 
+                .op=TAC_MOV, 
+                .move.dest = TEMP_VAR(temp_idx),
+                .move.src = INT_VAR((stm->ast_bool.value))
+            }));
+            return temp_idx;
         } PANIC("Unreachable");
         case AST_NUMBER: {
             int temp_idx = TEMP_IDX++;

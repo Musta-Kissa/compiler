@@ -35,6 +35,8 @@ typedef enum {
     TAC_CMP_GT,
     TAC_CMP_LE,
     TAC_CMP_GE,
+    TAC_LOGIC_AND,
+    TAC_LOGIC_OR,
 } TacOp;
 
 typedef enum {
@@ -42,7 +44,8 @@ typedef enum {
     TAC_PTR,
     TAC_I64,
     TAC_F64,
-    TAC_B64,
+    //TAC_B64,
+    TAC_U64,
 } TacType;
 
 typedef enum {

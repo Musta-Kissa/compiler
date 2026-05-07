@@ -645,6 +645,9 @@ Type* analyze_function_call(AstNode* stm) {
 Type* analyze_expr_statement_inner(AstNode* stm) {
     switch(stm->type) {
         char* ident;
+        case AST_BOOL:
+            stm->ast_bool.type = &anlz.types[BOOL_TYPE_IDX];
+            return &anlz.types[BOOL_TYPE_IDX];
         case AST_NUMBER:
             return stm->number.type;
         case AST_IDENTIFIER:
@@ -791,6 +794,9 @@ Type* analyze_expr_statement_inner(AstNode* stm) {
             case MORE_THEN:
             case LESS_EQUAL:
             case MORE_EQUAL:
+
+            case LOGIC_OR:
+            case LOGIC_AND:
                 stm->binary_operation.is_lvalue = false;
 
                 left_type  = analyze_expr_statement_inner(stm->binary_operation.left);
@@ -868,7 +874,7 @@ Type* analyze_expr_statement_inner(AstNode* stm) {
                 PANIC("");
         }
     } else {
-        PANIC("%s %d: Expected opp or terminal",__FILE__,__LINE__);
+        PANIC("Expected opp or terminal");
     }
 }
 

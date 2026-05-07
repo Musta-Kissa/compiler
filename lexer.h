@@ -7,6 +7,9 @@
 #include "my_string.h"
 
 typedef enum TokenKind {
+    TRUE,
+    FALSE,
+
     IDENT,
     NUMBER,
     STRING,
@@ -55,6 +58,10 @@ typedef enum TokenKind {
     LESS_EQUAL,
     MORE_EQUAL,
 
+    LOGIC_AND,
+    LOGIC_OR,
+
+    BITWISE_OR,
 } TokenKind ;
 
 typedef struct Token {

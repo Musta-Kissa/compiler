@@ -10,6 +10,10 @@ const char* format_token_kind(TokenKind k) {
     switch(k) {
         //case UNKNOWN_TYPE:          return "UNKNOWN_TYPE";
         //case TYPE:                  return "TYPE";
+        
+        case TRUE:                  return "TRUE";
+        case FALSE:                 return "FALSE";
+
         case IDENT:                 return "IDENT";
         case NUMBER:                return "NUMBER";
         case STRING:                return "STRING";
@@ -40,6 +44,9 @@ const char* format_token_kind(TokenKind k) {
         case LESS_EQUAL:            return "LESS_EQUAL";
         case MORE_EQUAL:            return "MORE_EQUAL";
 
+        case LOGIC_AND:             return "LOGIC_AND";
+        case LOGIC_OR:              return "LOGIC_OR";
+
         case IF:                    return "IF";
         case ELSE:                  return "ELSE";
         case WHILE:                 return "WHILE";
@@ -56,13 +63,14 @@ const char* format_token_kind(TokenKind k) {
         case FN:                    return "FN";
         case EXTERN:                return "EXTERN";
         case ARROW:                 return "ARROW";
+
         default:                    PANIC("UNHANDLED TOKEN TYPE");
     }
 }
 
 int get_keyword(char* buff,Token* t) {
-    const char*     keywords[]      = {"extern","union","enum","struct","if","else","for","while","return","fn","EOF"};
-    const TokenKind keyword_kinds[] = { EXTERN , UNION , ENUM , STRUCT , IF , ELSE , FOR , WHILE , RETURN , FN , EOF_TOKEN};
+    const char*     keywords[]      = {"extern","union","enum","struct","if","else","for","while","return","fn","true","false","EOF"};
+    const TokenKind keyword_kinds[] = { EXTERN , UNION , ENUM , STRUCT , IF , ELSE , FOR , WHILE , RETURN , FN , TRUE , FALSE ,EOF_TOKEN};
     const int len = sizeof(keywords) / sizeof(keywords[0]);
 
     for ( int i = 0; i < len; i++) {
@@ -125,19 +133,25 @@ Lexer lex_file(String string) {
     while((c = String_getc(&string)) != EOF ) {
         ASSERT((tokens_idx < 1000),"%s %d: EXEEDED MAX TOKENS",__FILE__,__LINE__);
         switch(c) {
-            case '&': tokens[tokens_idx++] = (Token){ .kind=AMPERSAND };                continue;
             case ':': tokens[tokens_idx++] = (Token){ .kind=COLON };                continue;
             case '(': tokens[tokens_idx++] = (Token){ .kind=OPEN_PARENT };          continue;
             case ')': tokens[tokens_idx++] = (Token){ .kind=CLOSE_PARENT };         continue;
             case '{': tokens[tokens_idx++] = (Token){ .kind=OPEN_CURRLY_PARENT };   continue;
             case '}': tokens[tokens_idx++] = (Token){ .kind=CLOSE_CURRLY_PARENT };  continue;
-            case '*': tokens[tokens_idx++] = (Token){ .kind=STAR };       continue;
+            case '*': tokens[tokens_idx++] = (Token){ .kind=STAR };                 continue;
             case '/': tokens[tokens_idx++] = (Token){ .kind=DIVITION };             continue;
             case ';': tokens[tokens_idx++] = (Token){ .kind=SEMICOLON };            continue;
             case ',': tokens[tokens_idx++] = (Token){ .kind=COMMA };                continue;
             case '.': tokens[tokens_idx++] = (Token){ .kind=DOT };                  continue;
             case '[': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_OPEN };       continue;
             case ']': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_CLOSE };      continue;
+            case '&': 
+                if( String_getc(&string) == '&') {
+                    tokens[tokens_idx++] = (Token){ .kind=LOGIC_AND };
+                } else {
+                    String_ungetc(&string);
+                    tokens[tokens_idx++] = (Token){ .kind=AMPERSAND };  
+                } continue;
             case '+': 
                 if( String_getc(&string) == '+') {
                     tokens[tokens_idx++] = (Token){ .kind=PLUS_PLUS };

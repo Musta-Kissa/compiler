@@ -3,9 +3,10 @@ extern {
     fn print_int(int i) {}
 }
 
-fn tac_test(float a, float b, int c, int d) -> int {
+fn tac_test(float a, float b, int c, bool d) -> int {
+    d = true;
     i :int = 0;
-    while a > b {
+    while a > b && a < b {
         a = a - b;
         i = i + 1;
     }

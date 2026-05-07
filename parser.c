@@ -47,26 +47,30 @@ AstNode* Ast_make_unary(Token opp, AstNode* right) {
 int get_binding_power(Token opp) {
     switch(opp.kind){
         case ASSIGN:            return 1;
-        case LESS_THEN:         return 2;
-        case MORE_THEN:         return 2;
-        case NOT_EQUAL:         return 2;
-        case LESS_EQUAL:        return 2;
-        case MORE_EQUAL:        return 2;
-        case EQUAL:             return 2;
 
-        case PLUS:              return 3;
-        case MINUS:             return 3;
-        case STAR:              return 4; // posible problem when dereferencing
-        case DIVITION:          return 4;
+        case LOGIC_OR:          return 2;
+        case LOGIC_AND:         return 3;
 
-        case PLUS_PLUS:         return 5;
-        case MINUS_MINUS:       return 5;
+        case LESS_THEN:         return 4;
+        case MORE_THEN:         return 4;
+        case NOT_EQUAL:         return 4;
+        case LESS_EQUAL:        return 4;
+        case MORE_EQUAL:        return 4;
+        case EQUAL:             return 4;
 
-        case NOT:               return 6;
-        case AMPERSAND:         return 6;
+        case PLUS:              return 5;
+        case MINUS:             return 5;
+        case STAR:              return 6; // posible problem when dereferencing
+        case DIVITION:          return 6;
 
-        case SUBSCRIPT_OPEN:    return 7;
-        case DOT:               return 8;
+        case PLUS_PLUS:         return 7;
+        case MINUS_MINUS:       return 7;
+
+        case NOT:               return 8;
+        case AMPERSAND:         return 8;
+
+        case SUBSCRIPT_OPEN:    return 9;
+        case DOT:               return 10;
 
         default:
             PANIC("BINDING POWER NOT SUPPORTED");
@@ -102,6 +106,9 @@ int is_opp(Token k) {
         case LESS_EQUAL:
         case MORE_EQUAL:
         case ASSIGN:
+        
+        case LOGIC_OR:
+        case LOGIC_AND:
             return 1;
         default:
             return 0;
@@ -153,6 +160,16 @@ int parse_leaf(Lexer* lexer,AstNode** left) {
     AstNode* leaf = (AstNode*)malloc(sizeof(AstNode));
 
     switch(t.kind) {
+        case FALSE:
+            leaf->type = AST_BOOL;
+            leaf->ast_bool.value = 0;
+            *left = leaf;
+            return 1;
+        case TRUE:
+            leaf->type = AST_BOOL;
+            leaf->ast_bool.value = 1;
+            *left = leaf;
+            return 1;
         case IDENT:
             if( Lexer_peek(lexer).kind == OPEN_PARENT ) {
                 //FunctionCall

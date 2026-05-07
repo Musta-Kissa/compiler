@@ -156,6 +156,10 @@ void print_expr_to_sb(StringBuilder* sb,AstNode* expr) {
                 sb_append(sb,"<="); break;
             case ASSIGN:
                 sb_append(sb,"="); break;
+            case LOGIC_AND:
+                sb_append(sb,"&&"); break;
+            case LOGIC_OR:
+                sb_append(sb,"||"); break;
             default: 
                 PANIC("%s %d:Oparation printing not supported",__FILE__,__LINE__);
         }
