@@ -2,10 +2,14 @@
 **This compiler is still WIP!!!**
 
 Its a strongly staticly typed language that works simmilar to C, the syntax is inspired by Jai/Odin.
-I'm currently working on backend for the compiler.
-There is a already a backend that directly generates x64 asm only for intiger operations
-on the x86 brach.
 
+To check whats implemented on a given branch look into the input.txt file
+
+## Dependencies
+Im using `nasm` to assemble and `ld` to link the compiled assembly
+
+## Usage
+After clonig the repo run `./run` then `mkdir out` and `./compiler && ./out/out`
 
 ## Example 
 Example with the currently implemented features is located in the input.txt
