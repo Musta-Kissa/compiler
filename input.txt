@@ -14,7 +14,13 @@ fn tac_test_2(float a, float b, int c, bool d) -> int {
 fn main() {
     i : int = -3;
     a : float = 69.420;
+    i2: int = tac_test_2(a, 89., 42, false);
     print_double(-987654321. + 0.123456789 + 100000000.);
+    print_double( 2. * 5.);
+    print_int( 2 );
+    print_int( 14 / -5);
+    print_double( -7. / 5.);
+    print_double( 2. * 5.);
 }
 EOF
 

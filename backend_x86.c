@@ -63,6 +63,81 @@ int get_var_info(VariableInfoDA vars, VariableInfo *out, TacVar needle) {
     }
     return 0;
 }
+void gen_x86_div(StringBuilder *sb, ProcContext *context, TacInstr instr) {
+    //result is always a new temp
+    TacVar arg1 = instr.binary.arg1;
+    TacVar arg2 = instr.binary.arg2;
+    TacVar result = instr.binary.result;
+    VariableInfo *info;
+
+    // sub reg1, reg2
+    
+    get_var_info_ref(context->vars,&info,arg1);
+    DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
+    Register arg1_reg = info->location.register_location.register_;
+
+    get_var_info_ref(context->vars,&info,arg2);
+    DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
+    Register arg2_reg = info->location.register_location.register_;
+
+    get_var_info_ref(context->vars,&info,result);
+    DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
+    Register result_reg = info->location.register_location.register_;
+
+    switch( instr.type ) {
+        case TAC_I64:
+            sb_append(sb,"mov rax, %s\n", get_register_str(arg1_reg));
+            sb_append(sb,"cqo\n");
+            sb_append(sb,"idiv %s\n", get_register_str(arg2_reg));
+            sb_append(sb,"mov %s, rax\n", get_register_str(result_reg));
+            break;
+        case TAC_U64: 
+            sb_append(sb,"mov rax, %s\n", get_register_str(arg1_reg));
+            sb_append(sb,"mov edx, 0\n");
+            sb_append(sb,"div %s\n", get_register_str(arg2_reg));
+            sb_append(sb,"mov %s, rax\n", get_register_str(result_reg));
+            break;
+        case TAC_F64: 
+            sb_append(sb,"divsd %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
+            break;
+        case TAC_PTR:
+        default: PANIC();
+    }
+
+}
+void gen_x86_mul(StringBuilder *sb, ProcContext *context, TacInstr instr) {
+    //result is always a new temp
+    TacVar arg1 = instr.binary.arg1;
+    TacVar arg2 = instr.binary.arg2;
+    TacVar result = instr.binary.result;
+    VariableInfo *info;
+
+    // sub reg1, reg2
+    
+    get_var_info_ref(context->vars,&info,arg1);
+    DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
+    Register arg1_reg = info->location.register_location.register_;
+
+    get_var_info_ref(context->vars,&info,arg2);
+    DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
+    Register arg2_reg = info->location.register_location.register_;
+
+    get_var_info_ref(context->vars,&info,result);
+    DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
+
+    switch( instr.type ) {
+        case TAC_I64: 
+        case TAC_U64: 
+            sb_append(sb,"mul %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
+            break;
+        case TAC_F64: 
+            sb_append(sb,"mulsd %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
+            break;
+        case TAC_PTR: 
+        default: PANIC();
+    }
+
+}
 void gen_x86_fcall(StringBuilder *sb, ProcContext *context, TacInstr instr) {
     VariableInfo info;
     for(int i = 0; i < instr.fcall.args.count; i++) {
@@ -119,7 +194,6 @@ void gen_x86_sub(StringBuilder *sb, ProcContext *context, TacInstr instr) {
     DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
 
     switch( instr.type ) {
-        case TAC_PTR: 
         case TAC_I64: 
         case TAC_U64: 
             sb_append(sb,"sub %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
@@ -127,6 +201,7 @@ void gen_x86_sub(StringBuilder *sb, ProcContext *context, TacInstr instr) {
         case TAC_F64: 
             sb_append(sb,"subsd %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
             break;
+        case TAC_PTR: 
         default: PANIC();
     }
 
@@ -171,7 +246,6 @@ void gen_x86_add(StringBuilder *sb, ProcContext *context, TacInstr instr) {
     DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
 
     switch( instr.type ) {
-        case TAC_PTR: 
         case TAC_I64: 
         case TAC_U64: 
             sb_append(sb,"add %s, %s\n",   get_register_str(arg1_reg), get_register_str(arg2_reg));
@@ -179,6 +253,7 @@ void gen_x86_add(StringBuilder *sb, ProcContext *context, TacInstr instr) {
         case TAC_F64: 
             sb_append(sb,"addsd %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
             break;
+        case TAC_PTR: 
         default: PANIC();
     }
 
@@ -492,8 +567,8 @@ void gen_x86_procedure(StringBuilder *sb, TacProc proc, FloatDA *floats) {
             case TAC_MOV:       gen_x86_mov(sb, &context, curr_instr, floats);  break;
             case TAC_ADD:       gen_x86_add(sb, &context, curr_instr);  break;
             case TAC_SUB:       gen_x86_sub(sb, &context, curr_instr);  break;
-            case TAC_MUL:       TODO();
-            case TAC_DIV:       TODO();
+            case TAC_MUL:       gen_x86_mul(sb, &context, curr_instr);  break;
+            case TAC_DIV:       gen_x86_div(sb, &context, curr_instr);  break;
             case TAC_FCALL:     gen_x86_fcall(sb, &context, curr_instr);break;
             case TAC_LABEL:     TODO();
             case TAC_JMP_IF:    TODO();

@@ -2,73 +2,92 @@ default rel
 
 section .bss
     buffer: resb 21
+    print_int_buffer:     resb 22                     ; 20 digits + sign + newline + null
+
+section .data
+    min_int_str db "-9223372036854775808",10  ; exact output for INT64_MIN
 
 section .text
     global print_int
     global allocate_page
 
-; Procedure: print_int
-; Input: RDI = integer to print (64-bit, non-negative)
-; Output: Prints integer to stdout followed by newline
-; Clobbers: RAX, RCX, RDX, RSI, R8, R9, R10, R11
+;----------------------------------------------------------------------
+; print_int
+; Input:  [rbp+16] = signed 64‑bit integer
+; Output: prints decimal representation to stdout, then a newline
+; Saves:  only r8–r15 if they are used (none used here)
+; Clobbers: RAX, RCX, RDX, RSI, RDI, RBX, R8–R11 (unchanged)
+;----------------------------------------------------------------------
 print_int:
     push rbp
     mov rbp, rsp
 
-    push rax
-    push rbx
-    push rdx
-    push rsi
-    
-    mov rax, [rbp+16]            ; Number to print
-    lea rbx, [buffer + 20]  ; Point to end of buffer
-    mov byte [rbx], 0       ; Null terminator (not strictly needed)
-    dec rbx
-    
-    mov rcx, 10             ; Divisor
-    
-    ; Handle zero case
-    test rax, rax
-    jnz .convert
-    mov byte [rbx], '0'
-    dec rbx
-    jmp .write
-    
-.convert:
-    xor rdx, rdx
-    div rcx
-    add dl, '0'
-    mov [rbx], dl
-    dec rbx
-    test rax, rax
-    jnz .convert
-    
-.write:
-    inc rbx                 ; Move back to first digit
-    
-    ; Calculate length
-    lea rdx, [buffer + 20]  ; End of buffer
-    sub rdx, rbx            ; Length without newline
-    
-    ; Store newline after the number
-    lea rsi, [rbx + rdx]    ; Point to position after last digit
-    mov byte [rsi], 10      ; Add newline (ASCII 10)
-    inc rdx                 ; Include newline in length
-    
-    ; Write syscall
-    mov rax, 1              ; sys_write = 1
-    mov rdi, 1              ; stdout = 1
-    mov rsi, rbx            ; String pointer
-    ; RDX already has length (including newline)
-    syscall
-    
-    pop rsi
-    pop rdx
-    pop rbx
-    pop rax
+    ; The argument is at [rbp+16] (return address + saved rbp)
+    mov rax, [rbp+16]           ; RAX = number to print
 
-    mov rsp, rbp
-    pop rbp 
+    ; Special case: INT64_MIN cannot be negated safely
+    mov rcx, 0x8000000000000000     ; load 64-bit constant
+    cmp rax, rcx
+    je .print_min
+
+    ; Determine sign, keep it in ECX (1 = negative, 0 = positive/zero)
+    xor ecx, ecx
+    test rax, rax
+    jns .convert_nonneg
+    neg rax                     ; make positive (safe: not INT64_MIN)
+    inc ecx                     ; flag = 1
+
+.convert_nonneg:
+    ; RAX = absolute value
+    lea rbx, [print_int_buffer + 20]      ; point past end of buffer
+    mov byte [rbx], 0           ; null terminator (optional)
+    dec rbx
+
+    mov edi, 10                 ; divisor (clobbers RDI, which is fine)
+
+.convert_loop:
+    xor edx, edx
+    div rdi                     ; divide RDX:RAX by 10
+    add dl, '0'                 ; convert remainder to ASCII
+    mov [rbx], dl               ; store digit
+    dec rbx                     ; move left
+    test rax, rax
+    jnz .convert_loop
+
+    inc rbx                     ; RBX now points to the first digit
+
+    ; Prepend '-' if the original number was negative
+    test ecx, ecx
+    jz .no_sign
+    dec rbx
+    mov byte [rbx], '-'
+.no_sign:
+
+    ; Calculate string length (digits + optional sign)
+    lea rdx, [print_int_buffer + 20]      ; end of buffer
+    sub rdx, rbx                ; length without newline
+
+    ; Append newline immediately after the digits
+    mov byte [rbx + rdx], 10    ; ASCII newline
+    inc rdx                     ; include newline in length
+
+    ; sys_write(fd=1, buf=rbx, len=rdx)
+    mov eax, 1                  ; syscall number for write
+    mov edi, 1                  ; stdout
+    mov rsi, rbx                ; string pointer
+    syscall
+
+    pop rbp
+    ret
+
+.print_min:
+    ; Directly print the exact string for -2^63
+    lea rsi, [min_int_str]
+    mov edx, 21                 ; length of the string (including newline)
+    mov eax, 1
+    mov edi, 1
+    syscall
+    pop rbp
     ret
 
 allocate_page:
