@@ -1,4 +1,5 @@
 #include "tac.h"
+#include "types.h"
 #include "analyzer.h"
 #include "dyn_arrays_macro.h"
 #include "panic_macros.h"
@@ -8,6 +9,7 @@
 #define LOCAL_VAR(ident) (TacVar){.kind=VAR_LOCAL, .ident = ident}
 #define TEMP_VAR(id) (TacVar){.kind=VAR_TEMP, .temp_id=id}
 #define LABEL_VAR(name) (TacVar){.kind=VAR_LABEL, .label_name=name}
+#define UINT_VAR(val) (TacVar){.kind=VAR_CONST_UINT, .uint_val=val}
 #define INT_VAR(val) (TacVar){.kind=VAR_CONST_INT, .int_val=val}
 #define FLOAT_VAR(val) (TacVar){.kind=VAR_CONST_FLOAT, .float_val=val}
 
@@ -130,8 +132,8 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm) {
                 case LESS_EQUAL:    op = TAC_CMP_LE; break;
                 case MORE_EQUAL:    op = TAC_CMP_GE; break;
 
-                case LOGIC_AND:     op = TAC_LOGIC_AND; break;
-                case LOGIC_OR:      op = TAC_LOGIC_OR;  break;
+                case LOGIC_AND:     op = TAC_AND; break;
+                case LOGIC_OR:      op = TAC_OR;  break;
 
                 case ASSIGN:
                     tac_assign(instructions,stm);
@@ -158,6 +160,7 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm) {
             da_append_ref(instructions, instr);
             return result_temp_idx;
         } PANIC("Unreachable");
+
         case AST_UNARY_OPERATION: {
             switch(stm->unary_operation.opp_token.kind) {
                 case STAR: {
@@ -179,6 +182,7 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm) {
                     PANIC("NOT SUPPORTED: %s",format_token(stm->unary_operation.opp_token));
             }
         } PANIC("Unreachable");
+
         case AST_BOOL: {
             int temp_idx = TEMP_IDX++;
             da_append_ref(instructions, ((TacInstr){ 
@@ -188,15 +192,25 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm) {
             }));
             return temp_idx;
         } PANIC("Unreachable");
+
         case AST_NUMBER: {
             int temp_idx = TEMP_IDX++;
+            TacVar var;
+            switch(stm->number.type->type_kind) {
+                case FLOAT_TYPE:
+                    var = FLOAT_VAR(atof(stm->number.value));   break;
+                case INTIGER_TYPE:
+                    var = INT_VAR(atoi(stm->number.value));     break;
+                default: PANIC();
+            }
             da_append_ref(instructions, ((TacInstr){ 
                 .op=TAC_MOV, 
                 .move.dest = TEMP_VAR(temp_idx),
-                .move.src = INT_VAR(atoi(stm->number.value))
+                .move.src = var,
             }));
             return temp_idx;
         } PANIC("Unreachable");
+
         case AST_IDENTIFIER: {
             int temp_idx = TEMP_IDX++;
             char* ident = stm->identifier.token.value;
@@ -207,6 +221,7 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm) {
             }));
             return temp_idx;
         } PANIC("Unreachable");
+
         case AST_FUNC_CALL: {
             return tac_function_call(instructions,stm);
         } PANIC("Unreachable");
@@ -440,7 +455,14 @@ void tac_top_level_statements(AstNode* stm) {
     }
 }
 
+void reset_tac_globals() {
+    TAC_PROGRAM = (TacProgram){0};
+    TEMP_IDX = 0;
+    LABEL_IDX = 0;
+}
+
 TacProgram generate_tac(AstNode* program) {
+    reset_tac_globals();
     tac_top_level_statements(program);
     return TAC_PROGRAM;
 

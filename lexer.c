@@ -1,4 +1,5 @@
 #include "lexer.h"
+#include "my_string.h"
 #include "panic_macros.h"
 #include <string.h>
 
@@ -16,6 +17,8 @@ const char* format_token_kind(TokenKind k) {
 
         case IDENT:                 return "IDENT";
         case NUMBER:                return "NUMBER";
+        case INTIGER_LITERAL:       return "INTIGER_LITERAL";
+        case FLOAT_LITERAL:         return "FLOAT_LITERAL";
         case STRING:                return "STRING";
 
         case AMPERSAND:             return "AMPERSAND";
@@ -82,6 +85,10 @@ int get_keyword(char* buff,Token* t) {
     return -1;
 }
 
+int is_ascii_digit(char c) {
+    return ( c >= '0' && c <= '9' );
+}
+
 int is_terminal(char c) {
     const char terminals[] = {'&',':','!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '-', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
@@ -123,6 +130,42 @@ Token Lexer_peek_back(Lexer* lexer) {
     return Lexer_peek_n(lexer,-1);
 }
 
+Token lex_number_literal(String *string, char first_char, int is_negative) {
+    char tmp[100];
+    int  tmp_idx = 0;
+
+    if(is_negative) {
+        tmp[tmp_idx++] = '-'; 
+    }
+    char c = first_char;
+    TokenKind kind = INTIGER_LITERAL;
+
+    while(1) {
+        tmp[tmp_idx++] = c; 
+        c = String_getc(string);
+
+        if( c == '.' ) {
+            kind = FLOAT_LITERAL;
+            tmp[tmp_idx] = '0';
+            continue;
+        } 
+        if(!is_ascii_digit(c)) {
+            break;
+        }
+    } 
+    String_ungetc(string);
+
+    if(tmp[tmp_idx-1] == '.') {
+        tmp[tmp_idx++] = '0';
+    }
+
+    tmp[tmp_idx] = '\0';
+
+    Token t = (Token){ .kind=kind, .value = (char*)malloc(sizeof(char)*100) };
+    strscpy(t.value,tmp,100);
+    return t;
+}
+
 Lexer lex_file(String string) {
     char c;
     char tmp[100];
@@ -131,7 +174,7 @@ Lexer lex_file(String string) {
     int tokens_idx = 0;
 
     while((c = String_getc(&string)) != EOF ) {
-        ASSERT((tokens_idx < 1000),"%s %d: EXEEDED MAX TOKENS",__FILE__,__LINE__);
+        ASSERT((tokens_idx < 1000),"EXEEDED MAX TOKENS");
         switch(c) {
             case ':': tokens[tokens_idx++] = (Token){ .kind=COLON };                continue;
             case '(': tokens[tokens_idx++] = (Token){ .kind=OPEN_PARENT };          continue;
@@ -160,7 +203,13 @@ Lexer lex_file(String string) {
                     tokens[tokens_idx++] = (Token){ .kind=PLUS };  
                 } continue;
             case '-': 
-                switch(String_getc(&string)) {
+                char temp_char = String_getc(&string);
+                if( is_ascii_digit(temp_char) ) {
+                    Token t = lex_number_literal(&string, temp_char, true);
+                    tokens[tokens_idx++] = t;
+                    continue;
+                }
+                switch(temp_char) {
                     case '-':
                         tokens[tokens_idx++] = (Token){ .kind=MINUS_MINUS };
                         break;
@@ -200,28 +249,16 @@ Lexer lex_file(String string) {
                     String_ungetc(&string);
                     tokens[tokens_idx++] = (Token){ .kind=NOT };      
                 } continue;
-        }
-        switch(c) {
             case '\t':
             case '\n':
             case ' ':
                 continue;
         }
 
-        // Int Number
-        if( c >= '0' && c <= '9' ) {
-            do {
-                tmp[tmp_idx++] = c; 
-                c = String_getc(&string);
-            } while( c >= '0' && c <= '9' );
-            String_ungetc(&string);
-
-            tmp[tmp_idx++] = '\0'; tmp_idx = 0;
-
-            Token t = (Token){ .kind=NUMBER, .value = (char*)malloc(sizeof(char)*100) };
-            strncpy(t.value,tmp,100);
+        // NUMBER LITERAL
+        if( is_ascii_digit(c) ) {
+            Token t = lex_number_literal(&string, c, false);
             tokens[tokens_idx++] = t;
-
         // String Litteral
         } else if( c == '\"') {
             c = String_getc(&string);

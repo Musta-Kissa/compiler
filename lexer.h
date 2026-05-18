@@ -12,6 +12,8 @@ typedef enum TokenKind {
 
     IDENT,
     NUMBER,
+    INTIGER_LITERAL,
+    FLOAT_LITERAL,
     STRING,
 
     AMPERSAND,

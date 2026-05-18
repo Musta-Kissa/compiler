@@ -182,30 +182,19 @@ int parse_leaf(Lexer* lexer,AstNode** left) {
                 *left = leaf;
                 return 1;
             }
-        case NUMBER:
+            TODO("Make it use new tokens for FLOAT_LITERAL and INT_LITERAL");
+        case INTIGER_LITERAL:
             leaf->type = AST_NUMBER;
-            // float
-            if( Lexer_peek(lexer).kind == DOT ) {
-                Lexer_next(lexer);
-
-                StringBuilder value = sb_new();
-                sb_append(&value,t.value);
-                sb_append(&value,".");
-                // Has decimal places
-                if( Lexer_peek(lexer).kind == NUMBER ) {
-                    sb_append(&value, Lexer_next(lexer).value);
-                } else {
-                    sb_append(&value, "0");
-                }
-
-                leaf->number.value = value.buffer; // leaf takes ownership of buffer
-                leaf->number.type = (Type*)malloc(sizeof(Type));
-                *leaf->number.type = (Type){.type_kind=FLOAT_TYPE, .float_type.size=BITS_64, .type_name = "float" };
-            } else { // Intiger
-                leaf->number.value = t.value;
-                leaf->number.type = (Type*)malloc(sizeof(Type));
-                *leaf->number.type = (Type){.type_kind=INTIGER_TYPE, .intiger_type.size=BITS_64, .type_name = "int" };
-            }
+            leaf->number.value = t.value;
+            leaf->number.type = (Type*)malloc(sizeof(Type));
+            *leaf->number.type = (Type){.type_kind=INTIGER_TYPE, .intiger_type.size=BITS_64, .type_name = "int" };
+            *left = leaf;
+            return 1;
+        case FLOAT_LITERAL:
+            leaf->type = AST_NUMBER;
+            leaf->number.value = t.value;
+            leaf->number.type = (Type*)malloc(sizeof(Type));
+            *leaf->number.type = (Type){.type_kind=FLOAT_TYPE, .float_type.size=BITS_64, .type_name = "float" };
             *left = leaf;
             return 1;
         case STRING:

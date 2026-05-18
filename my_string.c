@@ -1,8 +1,28 @@
-#include<stdio.h>
-#include<stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
 #include "panic_macros.h"
 #include "my_string.h"
 #include "parser.h"
+
+ssize_t strscpy(char *dest, const char *src, size_t count) {
+    if( count == 0 )
+        return -E2BIG;
+
+    size_t i = 0;
+    for(; i < count-1; i++) {
+        char c = src[i];
+        dest[i] = c;
+        if( c == '\0' )
+            return i;
+    }
+	dest[i] = '\0';
+
+    if( src[i] != '\0')
+        return -E2BIG;
+
+	return i;
+}
 
 String String_readfile(FILE* file) {
     fseek(file, 0, SEEK_END);

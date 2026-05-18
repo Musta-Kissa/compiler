@@ -13,7 +13,7 @@ typedef enum {
     TAC_RET,
 
     TAC_FCALL,
-    TAC_EXTERN,
+    //TAC_EXTERN, //deprecated
     TAC_LABEL,
 
     TAC_JMP_IF,
@@ -35,8 +35,8 @@ typedef enum {
     TAC_CMP_GT,
     TAC_CMP_LE,
     TAC_CMP_GE,
-    TAC_LOGIC_AND,
-    TAC_LOGIC_OR,
+    TAC_AND,
+    TAC_OR,
 } TacOp;
 
 typedef enum {
@@ -57,6 +57,7 @@ typedef enum {
     VAR_LABEL,
 
     VAR_CONST_INT,
+    VAR_CONST_UINT,
     VAR_CONST_FLOAT,
 } TacVarKind;
 
@@ -66,6 +67,7 @@ typedef struct {
         int     temp_id;       // for temps: e.g., 1 -> "t1"
         char    *ident;        // for local vars: "a", "b"
         int     int_val;
+        unsigned int uint_val;
         float   float_val;
         char    *label_name;  // for labels: "L1", "L2"
     };
@@ -122,5 +124,7 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm);
 void tac_statements(TacInstrDA* instructions, AstNode* next);
 void print_tac(TacInstrDA instructions);
 void print_tac_proc(TacProc proc);
+
+void print_tac_var(TacVar var);
 
 #endif

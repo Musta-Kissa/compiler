@@ -9,6 +9,8 @@ typedef struct String {
     int idx;
 } String;
 
+ssize_t strscpy(char *dest, const char *src, size_t count);
+
 String String_readfile(FILE* file);
 char String_getc(String* string);
 void String_ungetc(String* string);

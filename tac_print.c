@@ -16,12 +16,11 @@ int tac_instr_kind(TacInstr instr) {
             case TAC_CMP_GT:
             case TAC_CMP_LE:
             case TAC_CMP_GE:
-            case TAC_LOGIC_AND:     
-            case TAC_LOGIC_OR:     
+            case TAC_AND:     
+            case TAC_OR:     
                 return BINARY;
                 break;
             case TAC_RET: 
-            case TAC_EXTERN: 
             case TAC_LABEL:
             case TAC_ALLOC:
                 return UNARY;
@@ -49,6 +48,7 @@ void print_tac_var(TacVar var){
         case VAR_LOCAL:         printf("%s",var.ident);     break;
         case VAR_LABEL:         printf("%s",var.label_name);break;
         case VAR_CONST_INT:     printf("%d",var.int_val);   break;
+        case VAR_CONST_UINT:    printf("%u",var.uint_val);  break;
         case VAR_CONST_FLOAT:   printf("%f",var.float_val); break;
         default: PANIC();
     }
@@ -96,15 +96,14 @@ void print_tac(TacInstrDA instructions) {
                     case TAC_SUB: printf("sub"); break;
                     case TAC_MUL: printf("mul"); break;
                     case TAC_DIV: printf("div"); break;
-                    case TAC_RET: printf("ret"); break;
                     case TAC_CMP_EQ: printf("cmp_eq"); break;
                     case TAC_CMP_NE: printf("cmp_ne"); break;
                     case TAC_CMP_LT: printf("cmp_lt"); break;
                     case TAC_CMP_GT: printf("cmp_gt"); break;
                     case TAC_CMP_LE: printf("cmp_le"); break;
                     case TAC_CMP_GE: printf("cmp_ge"); break;
-                    case TAC_LOGIC_AND: printf("and"); break;
-                    case TAC_LOGIC_OR:  printf("or"); break;
+                    case TAC_AND: printf("and"); break;
+                    case TAC_OR:  printf("or"); break;
                     default: PANIC();
                 }
                 if(instr.type != TAC_VOID ) {
@@ -121,9 +120,8 @@ void print_tac(TacInstrDA instructions) {
             case UNARY: {
                 switch(instr.op) {
                     case TAC_ALLOC: printf("alloc"); break;
-                    case TAC_ADDR: printf("addr_of"); break;
-                    case TAC_RET: printf("ret"); break;
-                    case TAC_EXTERN: PANIC("DEPRECATED"); break;
+                    case TAC_ADDR:  printf("addr_of"); break;
+                    case TAC_RET:   printf("ret"); break;
                     case TAC_LABEL: {
                         printf("%s:\n",instr.unary.src.label_name);
                         continue;

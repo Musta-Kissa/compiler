@@ -60,7 +60,7 @@ char* get_register_str(Register reg);
 // assuming the str is no longer then 4 chars
 //Register register_from_str(char* reg_str);
 Register take_next_available_register(Registers* regs);
-Register take_next_available_register_for_type(Registers* regs, Type* type);
+Register take_next_available_register_for_type(Registers* regs, TacType type);
 void remove_register(Registers* regs, Register reg);
 void add_register(Registers* regs, Register reg);
 void print_all_regs(Registers regs);

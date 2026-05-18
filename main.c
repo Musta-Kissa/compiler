@@ -8,11 +8,12 @@
 #include "analyzer.h"
 #include "tac.h"
 #include "print_ast.h"
-//#include "backend.h"
+#include "backend_x86.h"
 
 int compile(const char *asm_code);
 
 int main(int argc, char* argv[]) {
+    //for(int i = 0; i < 1024; i ++ ) { // for flamegraph
     FILE* f = fopen("./input.txt","r");
 
     String source = String_readfile(f);
@@ -31,7 +32,8 @@ int main(int argc, char* argv[]) {
         printf("%d: %s ",n,format_token(t));
         switch(t.kind) {
             case IDENT: 
-            case NUMBER:
+            case INTIGER_LITERAL:
+            case FLOAT_LITERAL:
             case STRING:
                 printf("val: %s",t.value);
         }
@@ -58,14 +60,17 @@ int main(int argc, char* argv[]) {
         print_tac_proc(tac_program.procedures.items[i]);
     }
 
-    /*
-    const char* output = generate_asm(program);
-    if( compile(output) == 0 ) {
+    const char* asm_code = gen_x86_asm(tac_program);
+
+    printf("ASM CODE:\n");
+    printf(asm_code);
+
+    if( compile(asm_code) == 0 ) {
         printf("COMPILATION DONE\n");
     } else {
         PANIC("COMPILATION FAILED");
     }
-    */
+    fclose(f);
 }
 
 int compile(const char *asm_code) {

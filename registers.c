@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "panic_macros.h"
-#include "types.h"
+#include "tac.h"
 #include "registers.h"
 
 #include "stdlib.h"
@@ -98,12 +98,13 @@ Register take_next_available_register(Registers* regs) {
     return 0;
 }
 
-Register take_next_available_register_for_type(Registers* regs, Type* type) {
+Register take_next_available_register_for_type(Registers* regs, TacType type) {
     if( regs == 0 ) return 0;
 
-    switch( type->type_kind ) {
-        case POINTER_TYPE:
-        case INTIGER_TYPE: {
+    switch( type ) {
+        case TAC_PTR:
+        case TAC_U64:
+        case TAC_I64: {
             for(int i = 0; i < 16; i++) {
                 Register reg = (Register)(1 << i);
                 if( (*regs & reg) != 0) {
@@ -113,7 +114,7 @@ Register take_next_available_register_for_type(Registers* regs, Type* type) {
             }
             return 0;
         }
-        case FLOAT_TYPE: {
+        case TAC_F64: {
             for(int i = 16; i < 32; i++) {
                 Register reg = (Register)(1 << i);
                 if( (*regs & reg) != 0) {
@@ -141,7 +142,7 @@ inline void add_register(Registers* regs, Register reg) {
 
 
 void print_all_regs(Registers regs) {
-    for(int i = 0; i < 16; i++) {
+    for(int i = 0; i < 32; i++) {
         Register reg = (Register)(1 << i);
         printf("%s ",get_register_str(reg));
         if( (regs & reg) != 0) {

@@ -1,14 +1,15 @@
 /* STACK LAYOUT
- *
- * arg 3            <- base ptr+32  ^
- * arg 2            <- base ptr+24  | caller function 
+ * var 1            <- base ptr-40  ^
+ * reg 4            <- base ptr-32  |
+ * reg 3            <- base ptr-24  |
+ * reg 2            <- base ptr-16  |
+ * reg 1            <- base ptr-8   |  called function
+ * saved base ptr   <- base ptr     v      
+ * return addr      <- base ptr+8   ^
  * arg 1            <- base ptr+16  |
- * return addr                      v
- * saved base ptr   <- base ptr     ^
- * var 1            <- base ptr-8   |  called function
- * var 2            <- base ptr-16  |
- * var 3            <- base ptr-24  v
- *
+ * arg 2            <- base ptr+24  | caller function 
+ * arg 3            <- base ptr+32  v
+ * ...
 */
 
 /*
