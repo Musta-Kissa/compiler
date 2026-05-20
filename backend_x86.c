@@ -63,6 +63,180 @@ int get_var_info(VariableInfoDA vars, VariableInfo *out, TacVar needle) {
     }
     return 0;
 }
+void gen_x86_bitwise(StringBuilder *sb, ProcContext *context, TacInstr instr) {
+    TacVar arg1 = instr.binary.arg1;
+    TacVar arg2 = instr.binary.arg2;
+    VariableInfo *info;
+
+    get_var_info_ref(context->vars,&info,arg1);
+    Register arg1_reg = info->location.register_location.register_;
+
+    get_var_info_ref(context->vars,&info,arg2);
+    Register arg2_reg = info->location.register_location.register_;
+
+    #ifdef DEBUG_RUNTIME_CHECKS 
+        TacVar result = instr.binary.result;
+        get_var_info_ref(context->vars,&info,result);
+        Register result_reg = info->location.register_location.register_;
+        DBG_ASSERT((result_reg == arg1_reg),"EXPECTED TO BE THE SAME REGISTER");
+    #endif
+
+    switch(instr.op) {
+        case TAC_AND: 
+            sb_append(sb,"and %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
+            break;
+        case TAC_OR: 
+            sb_append(sb,"or %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
+            break;
+    }
+}
+void gen_x86_addr(StringBuilder *sb, ProcContext *context, TacInstr instr) {
+    TacVar dest = instr.move.dest;
+    TacVar src = instr.move.src;
+
+    VariableInfo dest_info;
+    VariableInfo src_info;
+
+    if(!get_var_info(context->vars,&dest_info,dest)) PANIC();
+    if(!get_var_info(context->vars,&src_info,src)) PANIC();
+
+    DBG_ASSERT((dest_info.location.type == REGISTER),"");
+    DBG_ASSERT((src.kind == VAR_LOCAL),"");
+
+    sb_append(sb,"lea %s, %s\n", 
+        get_register_str(dest_info.location.register_location.register_),
+        get_location_str(src_info.location)
+    );
+}
+void gen_x86_load(StringBuilder *sb, ProcContext *context, TacInstr instr) {
+    TacVar dest = instr.move.dest;
+    TacVar src = instr.move.src;
+
+    VariableInfo dest_info;
+    VariableInfo src_info;
+
+    if(!get_var_info(context->vars,&dest_info,dest)) PANIC();
+    if(!get_var_info(context->vars,&src_info,src)) PANIC();
+
+    DBG_ASSERT((dest_info.location.type == REGISTER),"");
+    DBG_ASSERT((src_info.location.type == REGISTER),"");
+
+    sb_append(sb,"mov %s, qword [%s]\n", 
+        get_register_str(dest_info.location.register_location.register_),
+        get_register_str(src_info.location.register_location.register_)
+    );
+}
+void gen_x86_store(StringBuilder *sb, ProcContext *context, TacInstr instr) {
+    TacVar dest = instr.move.dest;
+    TacVar src = instr.move.src;
+
+    VariableInfo dest_info;
+    VariableInfo src_info;
+
+    if(!get_var_info(context->vars,&dest_info,dest)) PANIC();
+    if(!get_var_info(context->vars,&src_info,src)) PANIC();
+
+    DBG_ASSERT((dest_info.location.type == REGISTER),"");
+    DBG_ASSERT((src_info.location.type == REGISTER),"");
+
+    sb_append(sb,"mov qword [%s], %s\n", 
+        get_register_str(dest_info.location.register_location.register_),
+        get_register_str(src_info.location.register_location.register_)
+    );
+}
+void gen_x86_jmp(StringBuilder *sb, ProcContext *context, TacInstr instr) {
+    TacVar src = instr.jump.src;
+    DBG_ASSERT((src.kind == VAR_TEMP),"");
+    VariableInfo info;
+
+    switch(instr.op) {
+        case TAC_JMP_IF_NOT:
+            get_var_info(context->vars,&info,src);
+            sb_append(sb,"cmp %s, 0\n",get_register_str(info.location.register_location.register_));
+            sb_append(sb,"jz %s\n",instr.jump.label);
+            break;
+        case TAC_JMP_IF:
+            get_var_info(context->vars,&info,src);
+            sb_append(sb,"cmp %s, 0\n",get_register_str(info.location.register_location.register_));
+            sb_append(sb,"jnz %s\n",instr.jump.label);
+            break;
+        default: PANIC();
+    }
+}
+
+void gen_x86_cmp(StringBuilder *sb, ProcContext *context, TacInstr instr) {
+    TacVar arg1 = instr.binary.arg1;
+    TacVar arg2 = instr.binary.arg2;
+    TacVar result = instr.binary.result;
+    VariableInfo *info;
+
+    get_var_info_ref(context->vars,&info,arg1);
+    DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
+    Register arg1_reg = info->location.register_location.register_;
+
+    get_var_info_ref(context->vars,&info,arg2);
+    DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
+    Register arg2_reg = info->location.register_location.register_;
+
+    get_var_info_ref(context->vars,&info,result);
+    DBG_ASSERT((info->location.type != NOT_ASSIGNED),"");
+    Register result_reg = info->location.register_location.register_;
+    
+    char* set_instr;
+    switch( instr.type ) {
+        case TAC_I64:
+            switch(instr.op) {
+                    case TAC_CMP_EQ: set_instr = "sete";    break;
+                    case TAC_CMP_NE: set_instr = "setne";   break;
+                    case TAC_CMP_LT: set_instr = "setl";    break;
+                    case TAC_CMP_GT: set_instr = "setg";    break;
+                    case TAC_CMP_LE: set_instr = "setle";   break;
+                    case TAC_CMP_GE: set_instr = "setge";   break;
+                    default: PANIC();
+            }
+            sb_append(sb,"cmp %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
+            sb_append(sb,"%s %sb\n", set_instr, get_register_str(result_reg));
+            sb_append(sb,"movzx %s, %sb\n", get_register_str(result_reg), get_register_str(result_reg));
+            break;
+        case TAC_U64: 
+            switch(instr.op) {
+                    case TAC_CMP_EQ: set_instr = "sete";    break;
+                    case TAC_CMP_NE: set_instr = "setne";   break;
+                    case TAC_CMP_LT: set_instr = "setb";   break;
+                    case TAC_CMP_GT: set_instr = "seta";   break;
+                    case TAC_CMP_LE: set_instr = "setbe";   break;
+                    case TAC_CMP_GE: set_instr = "setae";   break;
+                    default: PANIC();
+            }
+            sb_append(sb,"cmp %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
+            sb_append(sb,"%s %sb\n", set_instr, get_register_str(result_reg));
+            sb_append(sb,"movzx %s, %sb\n", get_register_str(result_reg), get_register_str(result_reg));
+            break;
+        case TAC_F64: 
+            switch(instr.op) {
+                    case TAC_CMP_EQ: set_instr = "sete";    break;
+                    case TAC_CMP_NE: set_instr = "setne";   break;
+                    case TAC_CMP_LT: set_instr = "setb";   break;
+                    case TAC_CMP_GT: set_instr = "seta";   break;
+                    case TAC_CMP_LE: set_instr = "setbe";   break;
+                    case TAC_CMP_GE: set_instr = "setae";   break;
+                    default: PANIC();
+            }
+            // here its safe to xor the value before the cmp because the result register cannot be the same as the args XMM cant be any rXb
+            sb_append(sb,"xor %s, %s\n", get_register_str(result_reg), get_register_str(result_reg));
+            sb_append(sb,"ucomisd %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
+            sb_append(sb,"setnp al\n");
+            sb_append(sb,"%s %sb\n", set_instr, get_register_str(result_reg));
+            sb_append(sb,"and %sb, al\n", get_register_str(result_reg));
+            break;
+        case TAC_PTR:
+        default: PANIC();
+    }
+}
+void gen_x86_label(StringBuilder *sb, TacInstr instr) {
+    sb_append(sb,"%s:\n",instr.unary.src.label_name);
+}
+
 void gen_x86_div(StringBuilder *sb, ProcContext *context, TacInstr instr) {
     //result is always a new temp
     TacVar arg1 = instr.binary.arg1;
@@ -140,7 +314,7 @@ void gen_x86_mul(StringBuilder *sb, ProcContext *context, TacInstr instr) {
 }
 void gen_x86_fcall(StringBuilder *sb, ProcContext *context, TacInstr instr) {
     VariableInfo info;
-    for(int i = 0; i < instr.fcall.args.count; i++) {
+    for(int i = instr.fcall.args.count-1; i >= 0; i--) {
         TacVar arg = instr.fcall.args.items[i];
         if(!get_var_info(context->vars, &info, arg)) PANIC();
         DBG_ASSERT((info.location.type == REGISTER),"");
@@ -223,7 +397,7 @@ void gen_x86_ret(StringBuilder *sb, ProcContext *context, TacInstr instr) {
             break;
         default: PANIC();
     }
-    sb_append(sb,"jmp L%d\n",context->return_label_number);
+    sb_append(sb,"jmp RET_L%d\n",context->return_label_number);
 }
 
 void gen_x86_add(StringBuilder *sb, ProcContext *context, TacInstr instr) {
@@ -343,9 +517,7 @@ int allocate_stack_space_for_locals(ProcContext *context){
     return stack_space_needed;
 }
 
-void print_var_infos(VariableInfoDA vars) {
-    for(int i = 0; i < vars.count; i++) {
-        VariableInfo curr_info = vars.items[i];
+void print_var_info(VariableInfo curr_info) {
         printf("key: ");
         switch(curr_info.key.kind) {
             case VAR_TEMP:          printf("temp t%d",curr_info.key.temp_id);  break;
@@ -364,6 +536,7 @@ void print_var_infos(VariableInfoDA vars) {
                     printf("%s", get_register_str(curr_info.location.register_location.register_)); break;
                 case STACK:
                     printf("qword [rbp%+d]", curr_info.location.stack_location.base_offset); break;
+                default: PANIC();
             }
         printf(", ");
         printf("type: ");
@@ -376,32 +549,39 @@ void print_var_infos(VariableInfoDA vars) {
             default: PANIC();
         }
         printf(", first_line_used: %d, last_line_used: %d\n",curr_info.first_line_used,curr_info.last_line_used);
+}
+void print_var_infos(VariableInfoDA vars) {
+    for(int i = 0; i < vars.count; i++) {
+        VariableInfo curr_info = vars.items[i];
+        print_var_info(curr_info);
     }
+}
+
+void free_used_reg_if_later_not_used(ProcContext *context, int curr_line_number, VariableInfo *info) {
+    DBG_ASSERT((info->location.type == REGISTER && info->last_line_used <= curr_line_number),"t%d last line used %d, curr line: %d", info->key.temp_id,info->last_line_used, curr_line_number);
+
+    add_register(&context->available_registers, info->location.register_location.register_);
 }
 
 void allocate_registers_for_temps(ProcContext *context, TacInstrDA instructions) {
     for(int i = 0; i < instructions.count; i++) {
-        //if( i > 0 ) { //free later unused registers
-        {
-            int curr_line_number = i + 1;
-            VariableInfo info = context->vars.items[i];
-            if(info.location.type == REGISTER && info.last_line_used <= curr_line_number) {
-                add_register(&context->available_registers, info.location.register_location.register_);
-            }
-        }
-        //}
-
+        int curr_line_number = i + 1;
         TacInstr instr = instructions.items[i];
         // allocate register
         VariableInfo *info;
         TacVar var;
         switch(instr.op) {
             // Two operand ops
+            case TAC_AND:     
+            case TAC_OR:
             case TAC_ADD: 
             case TAC_SUB: 
             case TAC_MUL: 
-            case TAC_DIV: {
+            case TAC_DIV: { // cant free arg1 reg because we transfer it to result, 
+                            // cant free result because it was just created so it will be used later
+                            // try to free arg2
                 TacVar arg1 = instr.binary.arg1; 
+                TacVar arg2 = instr.binary.arg2; 
                 TacVar result = instr.binary.result;
                 DBG_ASSERT((arg1.kind == VAR_TEMP),"");
 
@@ -411,6 +591,9 @@ void allocate_registers_for_temps(ProcContext *context, TacInstrDA instructions)
 
                 if(!get_var_info_ref(context->vars,&info,result)) PANIC();
                  info->location = location;
+
+                if(!get_var_info_ref(context->vars,&info,arg2)) PANIC();
+                    free_used_reg_if_later_not_used(context,curr_line_number,info);
             } break;
 
             // Three operand ops
@@ -419,13 +602,17 @@ void allocate_registers_for_temps(ProcContext *context, TacInstrDA instructions)
             case TAC_CMP_LT:
             case TAC_CMP_GT:
             case TAC_CMP_LE:
-            case TAC_CMP_GE:
-            case TAC_AND:     
-            case TAC_OR: {
-                TODO("ARE THEY THREE OPERAND OPS?");
+            case TAC_CMP_GE: { // first free both arg registers
+                TacVar arg1 = instr.binary.arg1; 
+                TacVar arg2 = instr.binary.arg2; 
+                if(!get_var_info_ref(context->vars,&info,arg1)) PANIC();
+                    free_used_reg_if_later_not_used(context,curr_line_number,info);
+                if(!get_var_info_ref(context->vars,&info,arg2)) PANIC();
+                    free_used_reg_if_later_not_used(context,curr_line_number,info);
+
                 TacVar result = instr.binary.result;
                 if(!get_var_info_ref(context->vars,&info,result)) PANIC();
-                 Register reg = take_next_available_register_for_type(&context->available_registers,info->type);
+                 Register reg = take_next_available_register_for_type(&context->available_registers,TAC_U64);
                  add_register(&context->touched_registers,reg);
                  info->location = (VariableLocation) {
                     .type = REGISTER,
@@ -433,6 +620,12 @@ void allocate_registers_for_temps(ProcContext *context, TacInstrDA instructions)
                  };
             } break;
             case TAC_FCALL: {
+                for(int j = 0; j < instr.fcall.args.count; j++) {
+                    TacVar arg = instr.fcall.args.items[j];
+                    DBG_ASSERT((arg.kind == VAR_TEMP),"");
+                    if(!get_var_info_ref(context->vars, &info, arg)) PANIC();
+                        free_used_reg_if_later_not_used(context,curr_line_number,info);
+                }
                 if( instr.type == TAC_VOID ) continue;
                 TacVar result = instr.fcall.result; // can be void
                 if(!get_var_info_ref(context->vars,&info,result)) PANIC();
@@ -443,10 +636,26 @@ void allocate_registers_for_temps(ProcContext *context, TacInstrDA instructions)
                     .register_location.register_ = reg,
                  };
             } break;
-            case TAC_LOAD:
-            case TAC_ADDR:
-            case TAC_MOV: {
+            case TAC_STORE: {
+                TacVar src = instr.move.src;
                 TacVar dest = instr.move.dest;
+                DBG_ASSERT((src.kind == VAR_TEMP && dest.kind == VAR_TEMP),"");
+
+                if(!get_var_info_ref(context->vars,&info,src)) PANIC();
+                    free_used_reg_if_later_not_used(context,curr_line_number,info);
+                if(!get_var_info_ref(context->vars,&info,dest)) PANIC();
+                    free_used_reg_if_later_not_used(context,curr_line_number,info);
+            } break;
+            case TAC_LOAD:
+            case TAC_ADDR: 
+            case TAC_MOV: {
+                TacVar src = instr.move.src;
+                TacVar dest = instr.move.dest;
+
+                if( src.kind == VAR_TEMP ) {
+                    if(!get_var_info_ref(context->vars,&info,src)) PANIC();
+                        free_used_reg_if_later_not_used(context,curr_line_number,info);
+                }
                 if( dest.kind == VAR_LOCAL ) continue;
 
                 if(!get_var_info_ref(context->vars,&info,dest)) PANIC();
@@ -457,12 +666,15 @@ void allocate_registers_for_temps(ProcContext *context, TacInstrDA instructions)
                     .register_location.register_ = reg,
                  };
             } break;
-            case TAC_RET:   // assuming src is already allocated
-            case TAC_STORE: // Assuming the dest is already allocated
+            case TAC_JMP_IF_NOT: 
+            case TAC_JMP_IF: {
+                TacVar src = instr.jump.src;
+                if(!get_var_info_ref(context->vars,&info,src)) PANIC();
+                    free_used_reg_if_later_not_used(context,curr_line_number,info);
+            } break;
+            case TAC_RET:
             case TAC_ALLOC: 
             case TAC_LABEL: 
-            case TAC_JMP_IF_NOT: 
-            case TAC_JMP_IF: 
             case TAC_JMP: 
                 continue;
             default: PANIC();
@@ -543,11 +755,11 @@ void gen_x86_procedure(StringBuilder *sb, TacProc proc, FloatDA *floats) {
         .return_label_number = CURR_JMP_LABEL_NUMBER++,
     };
 
+    //TODO: analyzing lifetimes may be not needed, just free them after use in the allocation
     analyze_variable_lifetimes_and_types(proc.instructions,&context.vars);
     allocate_registers_for_temps(&context, proc.instructions);
     //print_all_regs(context.touched_registers);
     int stack_space_needed = allocate_stack_space_for_locals(&context);
-    print_var_infos(context.vars);
 
     sb_append(sb,"%s:\n",proc.ident);
     // PROLOG
@@ -556,43 +768,55 @@ void gen_x86_procedure(StringBuilder *sb, TacProc proc, FloatDA *floats) {
     sb_append(sb,"sub rsp, %d\n",stack_space_needed);
     save_registers_to_stack(sb,context);
 
-    printf(sb->buffer);
+    //printf(sb->buffer);
 
     for(int i = 0; i < proc.instructions.count; i++) {
         TacInstr curr_instr = proc.instructions.items[i];
 
         // ALL VARS ARE ALLOCATED
         switch(curr_instr.op) {
-            case TAC_RET:       gen_x86_ret(sb, &context, curr_instr);  break;
+            case TAC_RET:       gen_x86_ret(sb, &context, curr_instr);          break;
             case TAC_MOV:       gen_x86_mov(sb, &context, curr_instr, floats);  break;
-            case TAC_ADD:       gen_x86_add(sb, &context, curr_instr);  break;
-            case TAC_SUB:       gen_x86_sub(sb, &context, curr_instr);  break;
-            case TAC_MUL:       gen_x86_mul(sb, &context, curr_instr);  break;
-            case TAC_DIV:       gen_x86_div(sb, &context, curr_instr);  break;
-            case TAC_FCALL:     gen_x86_fcall(sb, &context, curr_instr);break;
-            case TAC_LABEL:     TODO();
-            case TAC_JMP_IF:    TODO();
-            case TAC_JMP_IF_NOT:TODO();
-            case TAC_JMP:       TODO();
-            case TAC_LOAD:      TODO();
-            case TAC_STORE:     TODO();
-            case TAC_ADDR:      TODO();
+            case TAC_ADD:       gen_x86_add(sb, &context, curr_instr);          break;
+            case TAC_SUB:       gen_x86_sub(sb, &context, curr_instr);          break;
+            case TAC_MUL:       gen_x86_mul(sb, &context, curr_instr);          break;
+            case TAC_DIV:       gen_x86_div(sb, &context, curr_instr);          break;
+            case TAC_FCALL:     gen_x86_fcall(sb, &context, curr_instr);        break;
+            case TAC_LABEL:     gen_x86_label(sb, curr_instr);                  break;
+
+            case TAC_CMP_EQ:    
+            case TAC_CMP_NE:    
+            case TAC_CMP_LT:    
+            case TAC_CMP_GT:    
+            case TAC_CMP_LE:    
+            case TAC_CMP_GE: {
+                gen_x86_cmp(sb, &context, curr_instr);
+                break;
+            }
+
+            case TAC_JMP_IF:    
+            case TAC_JMP_IF_NOT:
+                gen_x86_jmp(sb, &context, curr_instr);
+                break;
+            case TAC_JMP:
+                sb_append(sb,"jmp %s\n",curr_instr.jump.label);
+                break;
+            case TAC_LOAD:      gen_x86_load(sb, &context, curr_instr); break;
+            case TAC_STORE:     gen_x86_store(sb, &context, curr_instr); break;
+            case TAC_ADDR:      gen_x86_addr(sb, &context, curr_instr); break;
+
+            case TAC_AND:       
+            case TAC_OR:        
+                gen_x86_bitwise(sb, &context, curr_instr); break;
+
             case TAC_ALLOC:     TODO();
-            case TAC_CMP_EQ:    TODO();
-            case TAC_CMP_NE:    TODO();
-            case TAC_CMP_LT:    TODO();
-            case TAC_CMP_GT:    TODO();
-            case TAC_CMP_LE:    TODO();
-            case TAC_CMP_GE:    TODO();
-            case TAC_AND:       TODO();
-            case TAC_OR:        TODO();
             default: PANIC();
         }
 
     }
 
     // EPILOG
-    sb_append(sb,"L%i:\n",context.return_label_number);
+    sb_append(sb,"RET_L%i:\n",context.return_label_number);
     populate_registers_from_stack(sb,context);
     // Stack frame cleanup; same as leave
     sb_append(sb,"mov rsp, rbp\n");

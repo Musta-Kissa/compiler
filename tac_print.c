@@ -50,6 +50,7 @@ void print_tac_var(TacVar var){
         case VAR_CONST_INT:     printf("%d",var.int_val);   break;
         case VAR_CONST_UINT:    printf("%u",var.uint_val);  break;
         case VAR_CONST_FLOAT:   printf("%f",var.float_val); break;
+        case VAR_VOID:          printf("!VOID!"); break;
         default: PANIC();
     }
 }

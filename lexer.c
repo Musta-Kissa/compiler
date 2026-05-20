@@ -90,7 +90,7 @@ int is_ascii_digit(char c) {
 }
 
 int is_terminal(char c) {
-    const char terminals[] = {'&',':','!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '-', '*', '/', '<', '>', ';', ' ', '\n','\"'};
+    const char terminals[] = {'&','|',':','!',',','.','[', ']', '(', '{', ')', '}', '=', '+', '-', '*', '/', '<', '>', ';', ' ', '\n','\"'};
     const int len = sizeof(terminals) / sizeof(terminals[0]);
 
     for ( int i = 0; i < len; i++) {
@@ -182,12 +182,24 @@ Lexer lex_file(String string) {
             case '{': tokens[tokens_idx++] = (Token){ .kind=OPEN_CURRLY_PARENT };   continue;
             case '}': tokens[tokens_idx++] = (Token){ .kind=CLOSE_CURRLY_PARENT };  continue;
             case '*': tokens[tokens_idx++] = (Token){ .kind=STAR };                 continue;
-            case '/': tokens[tokens_idx++] = (Token){ .kind=DIVITION };             continue;
             case ';': tokens[tokens_idx++] = (Token){ .kind=SEMICOLON };            continue;
             case ',': tokens[tokens_idx++] = (Token){ .kind=COMMA };                continue;
             case '.': tokens[tokens_idx++] = (Token){ .kind=DOT };                  continue;
             case '[': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_OPEN };       continue;
             case ']': tokens[tokens_idx++] = (Token){ .kind=SUBSCRIPT_CLOSE };      continue;
+            case '/': 
+                if( String_getc(&string) == '/') { // SINGLE LINE COMMENT 
+                    while(String_getc(&string) != '\n'){};
+                } else {
+                    String_ungetc(&string);
+                    tokens[tokens_idx++] = (Token){ .kind=DIVITION };
+                } continue;
+            case '|': 
+                if( String_getc(&string) == '|') {
+                    tokens[tokens_idx++] = (Token){ .kind=LOGIC_OR };
+                } else {
+                    PANIC("Expected another \'|\' after \'|\'");
+                } continue;
             case '&': 
                 if( String_getc(&string) == '&') {
                     tokens[tokens_idx++] = (Token){ .kind=LOGIC_AND };

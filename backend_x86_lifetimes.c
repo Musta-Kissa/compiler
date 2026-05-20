@@ -5,7 +5,7 @@ void analyze_lifetimes_addr(TacInstr instr, VariableInfoDA *vars, int curr_line)
     VariableInfo *info;
     TacType type;
 
-    DBG_ASSERT((dest.kind == VAR_TEMP && src.kind == VAR_TEMP),"");
+    DBG_ASSERT((dest.kind == VAR_TEMP && src.kind == VAR_LOCAL),"");
 
     if(!get_var_info_ref(*vars, &info, src)) PANIC();
     info->last_line_used = curr_line;
@@ -110,13 +110,36 @@ void analyze_lifetimes_binary(TacInstr instr, VariableInfoDA *vars, int curr_lin
     DBG_ASSERT((result.kind == VAR_TEMP && arg1.kind == VAR_TEMP && arg2.kind == VAR_TEMP ),"");
 
     DBG_ASSERT((!get_var_info_ref(*vars, &info, result)), "");
-    da_append_ref(vars,((VariableInfo){
-        .type = instr.type,
-        .key  = result,
-        .location = {0},
-        .first_line_used = curr_line,
-        .last_line_used  = curr_line,
-    }));
+    switch(instr.op) {
+        case TAC_ADD:       
+        case TAC_SUB:
+        case TAC_MUL:
+        case TAC_DIV:
+        case TAC_AND:
+        case TAC_OR:
+            da_append_ref(vars,((VariableInfo){
+                .type = instr.type,
+                .key  = result,
+                .location = {0},
+                .first_line_used = curr_line,
+                .last_line_used  = curr_line,
+            }));
+            break;
+        case TAC_CMP_EQ:
+        case TAC_CMP_NE:
+        case TAC_CMP_LT:
+        case TAC_CMP_GT:
+        case TAC_CMP_LE:
+        case TAC_CMP_GE:
+            da_append_ref(vars,((VariableInfo){
+                .type = TAC_U64, //bool
+                .key  = result,
+                .location = {0},
+                .first_line_used = curr_line,
+                .last_line_used  = curr_line,
+            }));
+            break;
+    }
 
     if(!get_var_info_ref(*vars, &info, arg1)) PANIC();
     info->last_line_used = curr_line;
@@ -191,7 +214,6 @@ void analyze_variable_lifetimes_and_types(TacInstrDA instructions, VariableInfoD
             case TAC_JMP_IF_NOT:
                 analyze_lifetimes_branch(curr_instr, vars, i+1);
                 break; 
-                TODO();
             default: PANIC();
         }
     }

@@ -57,7 +57,7 @@ TacType tac_type_from_type(Type* type) {
 
 void tac_assign(TacInstrDA* instructions, AstNode* stm) {
     switch(stm->binary_operation.left->type) {
-        case AST_IDENTIFIER: // regular assign
+        case AST_IDENTIFIER: {// regular assign
             char* ident = stm->binary_operation.left->identifier.token.value;
             int temp_idx = tac_expression(instructions, stm->binary_operation.right);
             da_append_ref(instructions, ((TacInstr){ 
@@ -65,16 +65,35 @@ void tac_assign(TacInstrDA* instructions, AstNode* stm) {
                 .move.dest = LOCAL_VAR(ident),
                 .move.src = TEMP_VAR(temp_idx)
             }));
-            break;
-        case AST_UNARY_OPERATION: // regular dereferenced assing
-            int dest_temp_idx = tac_expression(instructions, stm->binary_operation.left->unary_operation.right);
+        } break;
+        case AST_UNARY_OPERATION: {// regular dereferenced assing
+            AstNode* expr_to_deref = stm->binary_operation.left->unary_operation.right;
             int src_temp_idx = tac_expression(instructions, stm->binary_operation.right);
-            da_append_ref(instructions, ((TacInstr){ 
-                .op=TAC_STORE, 
-                .move.dest = TEMP_VAR(dest_temp_idx),
-                .move.src = TEMP_VAR(src_temp_idx)
-            }));
-            break;
+
+            if(expr_to_deref->type == AST_IDENTIFIER) { // *some_ptr = some_expr => mov some_ptr_location ([rbp+x]), temp_var
+                char* ident = expr_to_deref->identifier.token.value;
+                int dest_temp_idx = TEMP_IDX++;
+                da_append_ref(instructions, ((TacInstr){ 
+                    .op=TAC_ADDR, 
+                    .move.dest = TEMP_VAR(dest_temp_idx),
+                    .move.src = LOCAL_VAR(ident),
+                }));
+                da_append_ref(instructions, ((TacInstr){ 
+                    .op=TAC_STORE, 
+                    .move.dest = TEMP_VAR(dest_temp_idx),
+                    .move.src = TEMP_VAR(src_temp_idx),
+                }));
+            } else { // *(some_expr) = some_expr => mov [temp_var], temp_var
+                TODO();
+                int dest_temp_idx = tac_expression(instructions, expr_to_deref);
+                da_append_ref(instructions, ((TacInstr){ 
+                    .op=TAC_STORE, 
+                    .move.dest = TEMP_VAR(dest_temp_idx),
+                    .move.src = TEMP_VAR(src_temp_idx)
+                }));
+            }
+            
+        } break;
         default:
             PANIC("UNREACHABLE, ANALYZER ERROR");
     }
@@ -164,14 +183,42 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm) {
         case AST_UNARY_OPERATION: {
             switch(stm->unary_operation.opp_token.kind) {
                 case STAR: {
+                    AstNode* expr_to_deref = stm->unary_operation.right;
+                    int temp_idx = TEMP_IDX++;
+
+                    if(expr_to_deref->type == AST_IDENTIFIER) { // *some_local => lea src_tmp, some_local; mov tmp_var, [src_tmp]
+                        char* ident = expr_to_deref->identifier.token.value;
+                        int src_temp_idx = TEMP_IDX++;
+                        da_append_ref(instructions, ((TacInstr){ 
+                            .op=TAC_ADDR, 
+                            .move.dest = TEMP_VAR(src_temp_idx),
+                            .move.src = LOCAL_VAR(ident),
+                        }));
+                        da_append_ref(instructions, ((TacInstr){ 
+                            .op=TAC_LOAD, 
+                            .move.dest = TEMP_VAR(temp_idx),
+                            .move.src = TEMP_VAR(src_temp_idx),
+                        }));
+                    } else { // *( expr + 5 - ptr)
+                        TODO();
+                        int src_temp_idx = tac_expression(instructions, expr_to_deref);
+                        da_append_ref(instructions, ((TacInstr){ 
+                            .op=TAC_LOAD, 
+                            .move.dest = TEMP_VAR(temp_idx),
+                            .move.src = TEMP_VAR(src_temp_idx)
+                        }));
+                    }
+
+                    /*
                     TacType op_type = tac_type_from_type(stm->unary_operation.op_type);
-                    int dest_temp_idx = TEMP_IDX++;
                     int src_temp_idx = tac_expression(instructions,stm->unary_operation.right);
                     TacInstr instr = { .op = TAC_LOAD, .type = op_type, .move.dest = TEMP_VAR(dest_temp_idx), .move.src = TEMP_VAR(src_temp_idx)};
                     da_append_ref(instructions,instr);
-                    return dest_temp_idx;
+                    */
+                    return temp_idx;
                 }   break;
                 case AMPERSAND: {
+                    TODO("take addr of local var");
                     int dest_temp_idx = TEMP_IDX++;
                     int src_temp_idx = tac_expression(instructions,stm->unary_operation.right);
                     TacInstr instr = { .op = TAC_ADDR, .move.dest = TEMP_VAR(dest_temp_idx), .move.src = TEMP_VAR(src_temp_idx)};

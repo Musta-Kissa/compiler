@@ -182,7 +182,6 @@ int parse_leaf(Lexer* lexer,AstNode** left) {
                 *left = leaf;
                 return 1;
             }
-            TODO("Make it use new tokens for FLOAT_LITERAL and INT_LITERAL");
         case INTIGER_LITERAL:
             leaf->type = AST_NUMBER;
             leaf->number.value = t.value;
