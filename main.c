@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
 
     AstNode* program = parse_program(&lexer);
 
-    //print_program_ast(program);
+    print_program_ast(program);
 
     analyze_program_ast(program);
     //printf("\e[0;32manalyzed ✓\e[0m\n"); 
@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
 
     const char* asm_code = gen_x86_asm(tac_program);
 
-    printf("ASM CODE:\n");
+    printf("\nASM CODE:\n");
     printf(asm_code);
 
     if( compile(asm_code) == 0 ) {

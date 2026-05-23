@@ -121,10 +121,23 @@ void gen_x86_load(StringBuilder *sb, ProcContext *context, TacInstr instr) {
     DBG_ASSERT((dest_info.location.type == REGISTER),"");
     DBG_ASSERT((src_info.location.type == REGISTER),"");
 
-    sb_append(sb,"mov %s, qword [%s]\n", 
-        get_register_str(dest_info.location.register_location.register_),
-        get_register_str(src_info.location.register_location.register_)
-    );
+    switch( instr.type ) {
+        case TAC_PTR: 
+        case TAC_I64: 
+        case TAC_U64: 
+            sb_append(sb,"mov %s, qword [%s]\n", 
+                get_register_str(dest_info.location.register_location.register_),
+                get_register_str(src_info.location.register_location.register_)
+            );
+            break;
+        case TAC_F64: 
+            sb_append(sb,"movsd %s, qword [%s]\n", 
+                get_register_str(dest_info.location.register_location.register_),
+                get_register_str(src_info.location.register_location.register_)
+            );
+            break;
+        default: PANIC();
+    }
 }
 void gen_x86_store(StringBuilder *sb, ProcContext *context, TacInstr instr) {
     TacVar dest = instr.move.dest;
@@ -301,6 +314,8 @@ void gen_x86_mul(StringBuilder *sb, ProcContext *context, TacInstr instr) {
 
     switch( instr.type ) {
         case TAC_I64: 
+            sb_append(sb,"imul %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
+            break;
         case TAC_U64: 
             sb_append(sb,"mul %s, %s\n", get_register_str(arg1_reg), get_register_str(arg2_reg));
             break;
@@ -646,8 +661,8 @@ void allocate_registers_for_temps(ProcContext *context, TacInstrDA instructions)
                 if(!get_var_info_ref(context->vars,&info,dest)) PANIC();
                     free_used_reg_if_later_not_used(context,curr_line_number,info);
             } break;
+            case TAC_ADDR:
             case TAC_LOAD:
-            case TAC_ADDR: 
             case TAC_MOV: {
                 TacVar src = instr.move.src;
                 TacVar dest = instr.move.dest;

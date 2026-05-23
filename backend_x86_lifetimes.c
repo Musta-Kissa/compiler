@@ -13,7 +13,8 @@ void analyze_lifetimes_addr(TacInstr instr, VariableInfoDA *vars, int curr_line)
 
     DBG_ASSERT((!get_var_info_ref(*vars, &info, dest)),"");
     da_append_ref(vars,((VariableInfo){
-        .type = type,
+        //.type = type,
+        .type = TAC_PTR,
         .key  = dest,
         .location = {0},
         .first_line_used = curr_line,
@@ -32,11 +33,10 @@ void analyze_lifetimes_load(TacInstr instr, VariableInfoDA *vars, int curr_line)
 
     if(!get_var_info_ref(*vars, &info, src)) PANIC();
     info->last_line_used = curr_line;
-    type = info->type;
 
     DBG_ASSERT((!get_var_info_ref(*vars, &info, dest)),"");
     da_append_ref(vars,((VariableInfo){
-        .type = type,
+        .type = instr.type,
         .key  = dest,
         .location = {0},
         .first_line_used = curr_line,

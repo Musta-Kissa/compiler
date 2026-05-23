@@ -62,6 +62,9 @@ void print_expr(AstNode* expr) {
                 printf("--"); break;
             case AMPERSAND:
                 printf("&"); break;
+            case STAR:
+                printf("*"); break;
+            default: PANIC();
         }
         printf(" "); 
         print_expr(expr->unary_operation.right);
@@ -96,6 +99,10 @@ void print_expr(AstNode* expr) {
                 printf("<="); break;
             case ASSIGN:
                 printf("="); break;
+            case LOGIC_AND:
+                printf("&&"); break;
+            case LOGIC_OR:
+                printf("||"); break;
             default: 
                 PANIC("Oparation printing not supported: %s %s",format_token(expr->binary_operation.opp_token),expr->binary_operation.opp_token.value);
         }

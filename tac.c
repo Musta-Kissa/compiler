@@ -186,43 +186,26 @@ int tac_expression(TacInstrDA* instructions, AstNode* stm) {
                     AstNode* expr_to_deref = stm->unary_operation.right;
                     int temp_idx = TEMP_IDX++;
 
-                    if(expr_to_deref->type == AST_IDENTIFIER) { // *some_local => lea src_tmp, some_local; mov tmp_var, [src_tmp]
-                        char* ident = expr_to_deref->identifier.token.value;
-                        int src_temp_idx = TEMP_IDX++;
-                        da_append_ref(instructions, ((TacInstr){ 
-                            .op=TAC_ADDR, 
-                            .move.dest = TEMP_VAR(src_temp_idx),
-                            .move.src = LOCAL_VAR(ident),
-                        }));
-                        da_append_ref(instructions, ((TacInstr){ 
-                            .op=TAC_LOAD, 
-                            .move.dest = TEMP_VAR(temp_idx),
-                            .move.src = TEMP_VAR(src_temp_idx),
-                        }));
-                    } else { // *( expr + 5 - ptr)
-                        TODO();
-                        int src_temp_idx = tac_expression(instructions, expr_to_deref);
-                        da_append_ref(instructions, ((TacInstr){ 
-                            .op=TAC_LOAD, 
-                            .move.dest = TEMP_VAR(temp_idx),
-                            .move.src = TEMP_VAR(src_temp_idx)
-                        }));
-                    }
-
-                    /*
                     TacType op_type = tac_type_from_type(stm->unary_operation.op_type);
-                    int src_temp_idx = tac_expression(instructions,stm->unary_operation.right);
-                    TacInstr instr = { .op = TAC_LOAD, .type = op_type, .move.dest = TEMP_VAR(dest_temp_idx), .move.src = TEMP_VAR(src_temp_idx)};
-                    da_append_ref(instructions,instr);
-                    */
+                    int src_temp_idx = tac_expression(instructions, expr_to_deref);
+                    da_append_ref(instructions, ((TacInstr){ 
+                        .type = op_type,
+                        .op=TAC_LOAD, 
+                        .move.dest = TEMP_VAR(temp_idx),
+                        .move.src = TEMP_VAR(src_temp_idx)
+                    }));
                     return temp_idx;
                 }   break;
                 case AMPERSAND: {
-                    TODO("take addr of local var");
+                    AstNode* addr_src = stm->unary_operation.right;
+                    DBG_ASSERT((addr_src->type == AST_IDENTIFIER),"");
+                    char* ident = addr_src->identifier.token.value;
                     int dest_temp_idx = TEMP_IDX++;
-                    int src_temp_idx = tac_expression(instructions,stm->unary_operation.right);
-                    TacInstr instr = { .op = TAC_ADDR, .move.dest = TEMP_VAR(dest_temp_idx), .move.src = TEMP_VAR(src_temp_idx)};
-                    da_append_ref(instructions,instr);
+                    da_append_ref(instructions, ((TacInstr){ 
+                        .op=TAC_ADDR, 
+                        .move.dest = TEMP_VAR(dest_temp_idx),
+                        .move.src = LOCAL_VAR(ident),
+                    }));
                     return dest_temp_idx;
                 }   break;
                 default:

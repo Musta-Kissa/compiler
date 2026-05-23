@@ -3,37 +3,23 @@ extern {
     fn print_int(int i) {}
     fn print_double(float i) {}
 }
-fn tac_test_2(float a, float b, int c, bool d, *int ptr) -> int {
-    while( c > 0  && (b >= 2. || true)) {
-    //while( c > 0  && b >= 2. || true) {
-        print_int(c);
-        print_double(b);
-        if( false ) {
-            print_int(5556666);
-        } else if c == 32 {
-            print_int(1177755555);
-        } else {
-            print_int(1999222);
-        }
-        c = c - 1;
-        b = b / 2.;
-    }
-    *ptr = c;
-    print_int(*ptr);
-    print_int(c);
-    y := a > b;
-    if y {
-        a = b + b - a;
-        b = a - b;
-    }
-    d = true;
-    i :int = 123420;
-    x :int = 1235;
-    return i;
-}
 
 fn main() {
-    tac_test_2(923., 1024., 69, true);
+    //tac_test_2(923., 1024., 69, true);
+    a: int = 993;
+    print_int(a);
+    a_ptr: *int = &a;
+    a_ptr_ptr: **int = &a_ptr;
+    print_int(**a_ptr_ptr);
+
+    d: float = 993.69;
+    print_double(d);
+    d_ptr: *float = &d;
+    d_ptr_ptr: **float = &d_ptr;
+    print_double(**d_ptr_ptr + 4.);
+
+    //c: *int = &(a+12);
+    //b: bool = !(*a_ptr == 10);
 }
 EOF
 

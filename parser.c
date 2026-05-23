@@ -44,6 +44,8 @@ AstNode* Ast_make_unary(Token opp, AstNode* right) {
     return node;
 }
 
+#define MAX_BP 999
+
 int get_binding_power(Token opp) {
     switch(opp.kind){
         case ASSIGN:            return 1;
@@ -218,6 +220,7 @@ int parse_leaf(Lexer* lexer,AstNode** left) {
 // a < b + c * d + e;
 
 AstNode* parse_incrising_bp(Lexer* lexer, AstNode* left, int min_bp) {
+    DBG_ASSERT((left != NULL),"");
     Token next = Lexer_peek(lexer);
 
     if( next.kind == CLOSE_PARENT  || next.kind == SUBSCRIPT_CLOSE ) {
@@ -244,12 +247,9 @@ AstNode* parse_incrising_bp(Lexer* lexer, AstNode* left, int min_bp) {
         } else {
             right = parse_expr(lexer,next_bp);
         }
-        if( left == NULL ) {
-            return Ast_make_unary(next, right);
-        } else {
-            ASSERT( (!is_unary(next) || next.kind == MINUS || next.kind == STAR), "%s %d: attempted to add unary opp to binary node: (%s)",__FILE__,__LINE__,format_token(next));
-            return AST_make_binary(left,next,right);
-        }
+
+        ASSERT( (!is_unary(next) || next.kind == MINUS || next.kind == STAR), "%s %d: attempted to add unary opp to binary node: (%s)",__FILE__,__LINE__,format_token(next));
+        return AST_make_binary(left,next,right);
     }
     
 }
@@ -267,6 +267,11 @@ AstNode* parse_expr(Lexer* lexer, int min_bp) {
         Lexer_next(lexer); // CONSUME CLOSE_PARENT
         ASSERT(Lexer_curr(lexer).kind == CLOSE_PARENT, 
                 "%s %d: expected close CLOSE_PARENT got: %s", __FILE__,__LINE__,format_token(Lexer_curr(lexer)));
+    }
+    if( leaf_return == 2 ) { // parse unary
+        Token next = Lexer_next(lexer);
+        AstNode* right =  parse_expr(lexer,MAX_BP);
+        left = Ast_make_unary(next, right);
     }
     while(true) {
         AstNode* node;
